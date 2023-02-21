@@ -1,0 +1,1 @@
+{"version":3,"file":"static/css/4498.960a434d.chunk.css","mappings":"AAAA,yBACI,8BACJ,CACA,+BAEI,kBAAmB,CADnB,eAEJ","sources":["pages/users/ConfirmEmail.css"],"sourcesContent":[".confirm-email-container {\r\n    min-height: calc(100vh - 362px);\r\n}\r\n.confirm-email-container .card {\r\n    margin-top: 20px;\r\n    margin-bottom: 20px;\r\n}"],"names":[],"sourceRoot":""}
