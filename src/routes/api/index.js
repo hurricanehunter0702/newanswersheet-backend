@@ -38,6 +38,7 @@ const { normalMiddleware, userMiddleware, staffMiddleware, adminMiddleware } = r
 router.post("/register", AuthCtrl.register);
 router.post("/register/google", AuthCtrl.googleSignUp);
 router.get("/verify-email/:token", AuthCtrl.verifyEmail);
+router.get("/verify-changed-email/:token", AuthCtrl.verifyChangedEmail);
 router.post("/forgot-password", AuthCtrl.forgotPwd);
 router.post("/reset-password", AuthCtrl.resetPwd);
 router.post("/login", AuthCtrl.login);
@@ -80,6 +81,7 @@ router.get("/admin/staffs", adminMiddleware, AdminStaffCtrl.fetch);
 router.get("/admin/staffs/:id", adminMiddleware, AdminStaffCtrl.fetchById);
 router.post("/admin/staffs", adminMiddleware, AdminStaffCtrl.create);
 router.put("/admin/staffs/:id", adminMiddleware, AdminStaffCtrl.update);
+router.put("/admin/staffs/login-mng/:id", adminMiddleware, AdminStaffCtrl.loginMng);
 router.put("/admin/staffs/:id/password", adminMiddleware, AdminStaffCtrl.changePassword);
 router.delete("/admin/staffs/:id", adminMiddleware, AdminStaffCtrl.remove);
 

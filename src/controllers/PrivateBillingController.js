@@ -204,7 +204,7 @@ const invoice = async (req, res) => {
             from: process.env.SENDGRID_USER,
             subject: "Welcome to pay for membership.",
             html: `
-            <div style="background: #fafafa; font-family: sans-serif; max-width: 660px;">
+            <div style="background: #fafafa; font-family: sans-serif; max-width: 660px; margin: auto">
                 <div style="padding: 10px; margin-bottom: 20px; background: #d6e4f1">
                     <img src="${process.env.HOSTNAME}/logo.svg" />
                 </div>

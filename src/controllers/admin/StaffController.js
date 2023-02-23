@@ -1,6 +1,7 @@
 const UserModel = require("../../models/UserModel");
 const bcrypt = require("bcrypt");
 const sgMail = require("@sendgrid/mail");
+const { findById } = require("../../models/UserModel");
 sgMail.setApiKey(process.env.SENDGRID_API_KEY);
 
 const fetch = async (req, res) => {
@@ -59,7 +60,7 @@ const create = async (req, res) => {
                     from: process.env.SENDGRID_USER,
                     subject: "AnswerSheet - accessing your staff account",
                     html: `
-                    <div style="background: #fafafa; font-family: sans-serif; max-width: 660px;">
+                    <div style="background: #fafafa; font-family: sans-serif; max-width: 660px; margin: auto">
                         <div style="padding: 10px; margin-bottom: 20px; background: #d6e4f1">
                             <img src="${process.env.HOSTNAME}/logo.png"/>
                         </div>
@@ -72,7 +73,7 @@ const create = async (req, res) => {
                                 <li>Email: ${user.email}</li>
                                 <li>Password: ${password}</li>
                             </ul>
-                            <p>If you have any questions or didn't make this change, please contact us at support@answersheet.au</p>
+                            <p>If you have any questions, please contact us at support@answersheet.au</p>
                             <p>Sincerely,</p>
                             <p style="font-weight: 700;">The AnswerSheet team</p>
                         </div>
@@ -137,6 +138,27 @@ const changePassword = async (req, res) => {
     }
 }
 
+const loginMng = async (req, res) => {
+    try {
+        let { id } = req.params;
+        let staff = await UserModel.findById(id);
+        if (staff.status) {
+            await UserModel.findByIdAndUpdate(id, { status: false });
+        } else {
+            await UserModel.findByIdAndUpdate(id, { status: true });
+        }
+        res.json({
+            status: true,
+            msg: 'Operation Succeeded.'
+        });
+    } catch (err) {
+        res.json({
+            status: false,
+            msg: err.message
+        });
+    }
+}
+
 const remove = async (req, res) => {
     try {
         let { id } = req.params;
@@ -159,6 +181,7 @@ module.exports = {
     fetch,
     fetchById,
     update,
+    loginMng,
     changePassword,
     remove
 }

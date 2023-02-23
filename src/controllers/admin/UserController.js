@@ -137,7 +137,7 @@ const updateProfile = async (req, res) => {
                 from: process.env.SENDGRID_USER,
                 subject: "AnswerSheet - your account is almost updated.",
                 html: `
-                    <div style="background: #fafafa; font-family: sans-serif; max-width: 660px;">
+                    <div style="background: #fafafa; font-family: sans-serif; max-width: 660px; margin: auto">
                         <div style="padding: 10px; margin-bottom: 20px; background: #d6e4f1">
                             <img src="${process.env.HOSTNAME}/logo.png"/>
                         </div>
@@ -146,7 +146,7 @@ const updateProfile = async (req, res) => {
                             <p>Hi, ${user.firstName}</p>
                             <p>Click below to update your profile.</p>
                             <div style="text-align: center; max-width: 400px; padding: 20px;">
-                                <a href="${process.env.HOSTNAME}/verify-email/${token}" style="text-decoration: none; padding: 10px 30px; background: #005492; display: inline-block; color: #fafafa">Validate email</a>
+                                <a href="${process.env.HOSTNAME}/verify-email/${token}" style="text-decoration: none; padding: 10px 30px; background: #005492; display: inline-block; color: #fafafa">Validate Email</a>
                             </div>
                             <p>This link expires in 72 hours.</p>
                             <p>If you have any questions or didn't make this change, please contact us at support@answersheet.au</p>

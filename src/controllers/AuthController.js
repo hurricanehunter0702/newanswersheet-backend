@@ -34,7 +34,7 @@ const register = async (req, res) => {
                 from: process.env.SENDGRID_USER,
                 subject: "AnswerSheet - your account is almost ready",
                 html: `
-                <div style="background: #fafafa; font-family: sans-serif;" max-width: 660px">
+                <div style="background: #fafafa; font-family: sans-serif; max-width: 660px; margin: auto">
                     <div style="padding: 10px; margin-bottom: 20px; background: #d6e4f1">
                         <img src="${process.env.HOSTNAME}/logo.png"/>
                     </div>
@@ -43,7 +43,7 @@ const register = async (req, res) => {
                         <p>Hi ${user.firstName}</p>
                         <p>Click below to finish your registration and access our HSC resource.</p>
                         <div style="padding: 20px;">
-                            <a href="${process.env.HOSTNAME}/verify-email/${token}" style="text-decoration: none; padding: 10px 30px; background: #005492; display: inline-block; color: #fafafa">Validate email</a>
+                            <a href="${process.env.HOSTNAME}/verify-email/${token}" style="text-decoration: none; padding: 10px 30px; background: #005492; display: inline-block; color: #fafafa">Validate Email</a>
                         </div>
                         <p>This link expires in 72 hours.</p>
                         <p>If you have any questions or didn't make this change, please contact us at support@answersheet.au</p>
@@ -85,7 +85,7 @@ const googleSignUp = async (req, res) => {
         if (user) {
             res.json({
                 success: false,
-                msg: "The email already exists."
+                msg: "“Email already exists, try logging in."
             });
         } else {
             user = await UserModel.create({
@@ -100,11 +100,37 @@ const googleSignUp = async (req, res) => {
             }, "a1A!s2S@d3D#f4F$", {
                 expiresIn: "24h"
             });
+            sgMail.send({
+                to: user.email,
+                from: process.env.SENDGRID_USER,
+                subject: "AnswerSheet - Sign up successful",
+                html: `
+                <div style="background: #fafafa; font-family: sans-serif; max-width: 660px; margin: auto">
+                    <div style="padding: 10px; margin-bottom: 20px; background: #d6e4f1">
+                        <img src="${process.env.HOSTNAME}/logo.svg">
+                    </div>
+                    <div style="padding: 10px 20px; border-top: 2px solid #ebebeb; border-bottom: 2px solid #ebebeb;">
+                        <h2 style="color: #005492;">Welcome to AnswerSheet</h2>
+                        <p>Hi ${user.firstName}</p>
+                        <p>You are about to have the HSC at your fingertips. Have a look at our subjects - there's heaps of free summary notes and practice questions.</p>
+                        <p>When you're ready consider signing up to our Premium membership where you will access even more summary notes, practice questions and exams.</p>
+                        <p>We hope we can make the HSC easy for you.</p>
+                        <p>Sincerely</p>
+                        <p style="font-weight: 600;">The AnswerSheet team</p>
+                    </div>
+                    <div style="padding: 10px 20px; font-size: 12px;">
+                        <p style="margin-top: 5px; margin-bottom: 5px;">© 2023 AnswerSheet Pty Ltd</p>
+                        <p style="margin-top: 5px; margin-bottom: 5px;">Our <a href="${process.env.HOSTNAME}/privacy-policy">Privacy Policy</a> explains how we collect, use, disclose, holds and secures personal information.</p>
+                        <p style="margin-top: 5px; margin-bottom: 5px;">Please do not reply to this email.</p>
+                    </div>
+                </div>
+                `
+            });
             res.json({
                 status: true,
                 user,
                 token,
-                msg: "Successfully registered"
+                msg: "Successfully registered. Please sign in using Google."
             });
         }
     } catch (err) {
@@ -135,9 +161,9 @@ const forgotPwd = async (req, res) => {
                 from: process.env.SENDGRID_USER,
                 subject: "AnswerSheet - password reset",
                 html: `
-                <div style="background: #fafafa; font-family: sans-serif; max-width: 660px;">
+                <div style="background: #fafafa; font-family: sans-serif; max-width: 660px; margin: auto">
                     <div style="padding: 10px; margin-bottom: 20px; background: #d6e4f1">
-                        <img src="${process.env.HOSTNAME}/logo.png">
+                        <img src="${process.env.HOSTNAME}/logo.svg">
                     </div>
                     <div style="padding: 10px 20px; border-top: 2px solid #ebebeb; border-bottom: 2px solid #ebebeb;">
                         <h2 style="color: #005492;">Password reset</h2>
@@ -148,8 +174,8 @@ const forgotPwd = async (req, res) => {
                         </div>
                         <p>This link expires in 72 hours.</p>
                         <p>If you have any questions or didn't make this change, please contact us at support@answersheet.au</p>
-                        <p>Sincerely,</p>
-                        <p style="font-weight: 700;">The AnswerSheet team</p>
+                        <p>Sincerely</p>
+                        <p style="font-weight: 600;">The AnswerSheet team</p>
                     </div>
                     <div style="padding: 10px 20px; font-size: 12px;">
                         <p style="margin-top: 5px; margin-bottom: 5px;">© 2023 AnswerSheet Pty Ltd</p>
@@ -218,7 +244,7 @@ const verifyEmail = async (req, res) => { // After registering, verify email.
     let verify = await EmailVerifyModel.findOne({ token });
     if (verify) {
         let today = moment();
-        let createdAt = moment(verify.createAt);
+        let createdAt = moment(verify.createdAt);
         if (today.diff(createdAt, "hours") <= 72) {
             await UserModel.findOneAndUpdate({
                 email: verify.email
@@ -226,11 +252,33 @@ const verifyEmail = async (req, res) => { // After registering, verify email.
             let user = await UserModel.findOne({ email: verify.email });
             let token = jwt.sign({
                 userId: user._id, email: user.email
-            }, "a1A!s2S@d3D#f4F$",
-                {
-                    expiresIn: "24h"
-                });
-    
+            }, "a1A!s2S@d3D#f4F$", { expiresIn: "24h" });
+            sgMail.send({
+                to: user.email,
+                from: process.env.SENDGRID_USER,
+                subject: "Ansersheet - Sign up successful",
+                html: `
+                <div style="background: #fafafa; font-family: sans-serif; max-width: 660px; margin: auto">
+                    <div style="padding: 10px; margin-bottom: 20px; background: #d6e4f1">
+                        <img src="${process.env.HOSTNAME}/logo.svg">
+                    </div>
+                    <div style="padding: 10px 20px; border-top: 2px solid #ebebeb; border-bottom: 2px solid #ebebeb;">
+                        <h2 style="color: #005492;">Welcome to Answersheet</h2>
+                        <p>Hi ${user.firstName}</p>
+                        <p>You are about to have the HSC at your fingertips. Have a look at our subjects - there's heaps of free summary notes and practice questions.</p>
+                        <p>When you're ready consider signing up to our Premium membership where you will access even more summary notes, practice questions and exams.</p>
+                        <p>We hope we can make the HSC easy for you.</p>
+                        <p>Sincerely</p>
+                        <p style="font-weight: 600;">The AnswerSheet team</p>
+                    </div>
+                    <div style="padding: 10px 20px; font-size: 12px;">
+                        <p style="margin-top: 5px; margin-bottom: 5px;">© 2023 AnswerSheet Pty Ltd</p>
+                        <p style="margin-top: 5px; margin-bottom: 5px;">Our <a href="${process.env.HOSTNAME}/privacy-policy">Privacy Policy</a> explains how we collect, use, disclose, holds and secures personal information.</p>
+                        <p style="margin-top: 5px; margin-bottom: 5px;">Please do not reply to this email.</p>
+                    </div>
+                </div>
+                `
+            });
             res.json({
                 status: true,
                 user,
@@ -258,7 +306,7 @@ const login = async (req, res) => {
         if (!user) {
             res.json({
                 status: false,
-                msg: "The user registered with that email does not exist."
+                msg: "The email and password combination did not match our records."
             });
         } else if (!bcrypt.compareSync(password, user.password)) {
             res.json({
@@ -339,14 +387,55 @@ const googleLogin = async (req, res) => {
 const updateProfile = async (req, res) => {
     try {
         let { id } = req.params;
+        let previousUser = await UserModel.findById(id);
         let user = req.body;
-        await UserModel.findByIdAndUpdate(id, user);
-        let result = await UserModel.findById(id);
-        res.json({
-            status: true,
-            data: result,
-            msg: "Successfully updated."
-        });
+        if (previousUser.email == user.email) {
+            await UserModel.findByIdAndUpdate(id, {firstName: user.firstName, lastName: user.lastName});
+            let result = await UserModel.findById(id);
+            res.json({
+                status: true,
+                data: result,
+                msg: "Updated successfully."
+            });
+        } else {
+            await UserModel.findByIdAndUpdate(id, {firstName: user.firstName, lastName: user.lastName});
+            let result = await UserModel.findById(id);
+            let token = jwt.sign({
+                userId: previousUser._id, email: previousUser.email
+            }, "a1A!s2S@d3D#f4F$");
+            await EmailVerifyModel.create({
+                email: user.email,
+                token: token
+            });
+            sgMail.send({
+                to: user.email,
+                from: process.env.SENDGRID_USER,
+                subject: 'AnswerSheet - Changing email address',
+                html: `
+                <div style="background: #fafafa; font-family: sans-serif; max-width: 660px; margin: auto">
+                    <div style="padding: 10px; margin-bottom: 20px; background: #d6e4f1">
+                        <img src="${process.env.HOSTNAME}/logo.svg">
+                    </div>
+                    <div style="padding: 10px 20px; border-top: 2px solid #ebebeb; border-bottom: 2px solid #ebebeb;">
+                        <h2 style="color: #005492;">Change email address for your AnswerSheet account</h2>
+                        <p>Hi ${user.firstName}</p>
+                        <p>Please click the link below to complete your request to change the email address we have on file for you. Remember to use your updated email address to log in.</p>
+                        <div style="padding: 20px;">
+                            <a href="${process.env.HOSTNAME}/verify-changed-email/${token}" style="text-decoration: none; padding: 10px 30px; background: #005492; display: inline-block; color: #fafafa">Validate Email</a>
+                        </div>
+                        <p>The link expires in 72 hours.</p>
+                        <p>If you have any questions or didn't make this change, please contact us at <a>support@answersheet.au</a>
+                        <p>Sincerely.</p>
+                    </div>
+                </div>
+                `
+            });
+            res.json({
+                status: true,
+                data: result,
+                msg: "Check your updated email address for validation link to complete update."
+            });
+        }
     } catch (err) {
         res.json({
             status: false,
@@ -355,8 +444,51 @@ const updateProfile = async (req, res) => {
     }
 }
 
+const verifyChangedEmail = async (req, res) => { // After changing email, verify email.
+    let { token } = req.params;
+    let verify = await EmailVerifyModel.findOne({ token });
+    if (verify) {
+        let today = moment();
+        let createdAt = moment(verify.createdAt);
+        if (today.diff(createdAt, "hours") <= 72) {
+            jwt.verify(token, "a1A!s2S@d3D#f4F$",  async (err, user) => {
+                if (err) {
+                    console.log(err);
+                    return;
+                }
+                await UserModel.findOneAndUpdate({
+                    email: user.email
+                }, { status: true, email: verify.email });
+                let newUser = await UserModel.findOne({ email: verify.email });
+                console.log("USER==========>", newUser);
+                let token = jwt.sign({
+                    userId: newUser.id, email: newUser.email
+                }, "a1A!s2S@d3D#f4F$", { expiresIn: "24h" });
+                console.log("TOKEN===========>", token);
+                res.json({
+                    status: true,
+                    user: newUser,
+                    token,
+                    msg: "Changing email completed."
+                });
+            });
+        } else {
+            res.json({
+                status: false,
+                msg: "Token is already expired"
+            });
+        }
+    } else {
+        res.json({
+            status: false,
+            msg: "Verify token is not correct."
+        });
+    }
+}
+
 const updatePassword = async (req, res) => {
     try {
+        console.log("UPDATEPASSWORD")
         let { id } = req.params;
         let { password } = req.body
         let salt = bcrypt.genSaltSync(10);
@@ -378,6 +510,7 @@ const updatePassword = async (req, res) => {
 module.exports = {
     register,
     verifyEmail,
+    verifyChangedEmail,
     forgotPwd,
     resetPwd,
     login,
