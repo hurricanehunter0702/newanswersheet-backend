@@ -33,7 +33,7 @@ const register = async (req, res) => {
                 to: user.email,
                 from: {
                     email: process.env.SENDGRID_USER,
-                    name: "AnswerSheet"
+                    name: process.env.SENDGRID_NAME
                 },
                 subject: "AnswerSheet - your account is almost ready",
                 html: `
@@ -105,7 +105,10 @@ const googleSignUp = async (req, res) => {
             });
             sgMail.send({
                 to: user.email,
-                from: process.env.SENDGRID_USER,
+                from: {
+                    email: process.env.SENDGRID_USER,
+                    name: process.env.SENDGRID_NAME
+                },
                 subject: "AnswerSheet - Sign up successful",
                 html: `
                 <div style="background: #fafafa; font-family: sans-serif; max-width: 660px; margin: auto">
@@ -161,7 +164,10 @@ const forgotPwd = async (req, res) => {
             });
             await sgMail.send({
                 to: user.email,
-                from: process.env.SENDGRID_USER,
+                from: {
+                    email: process.env.SENDGRID_USER,
+                    name: process.env.SENDGRID_NAME
+                },
                 subject: "AnswerSheet - password reset",
                 html: `
                 <div style="background: #fafafa; font-family: sans-serif; max-width: 660px; margin: auto">
@@ -258,7 +264,10 @@ const verifyEmail = async (req, res) => { // After registering, verify email.
             }, "a1A!s2S@d3D#f4F$", { expiresIn: "24h" });
             sgMail.send({
                 to: user.email,
-                from: process.env.SENDGRID_USER,
+                from: {
+                    email: process.env.SENDGRID_USER,
+                    name: process.env.SENDGRID_NAME
+                },
                 subject: "Ansersheet - Sign up successful",
                 html: `
                 <div style="background: #fafafa; font-family: sans-serif; max-width: 660px; margin: auto">
@@ -412,7 +421,10 @@ const updateProfile = async (req, res) => {
             });
             sgMail.send({
                 to: user.email,
-                from: process.env.SENDGRID_USER,
+                from: {
+                    email: process.env.SENDGRID_USER,
+                    name: process.env.SENDGRID_NAME
+                },
                 subject: 'AnswerSheet - Changing email address',
                 html: `
                 <div style="background: #fafafa; font-family: sans-serif; max-width: 660px; margin: auto">

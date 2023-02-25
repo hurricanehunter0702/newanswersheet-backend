@@ -14,19 +14,25 @@ paypal.configure({
 });
 sgMail.setApiKey(process.env.SENDGRID_API_KEY);
 
+let memberships = [];
+
 const purchase = async (req, res) => {
     try {
-        let user = req.user;
+        console.log("PRIVATEPURCHASE")    
+        let user = await UserModel.findById(req.user.userId);
         let { gateway } = req.params;
         let { membership } = req.body;
+        console.log("MEMBERSHIP====>", membership);
+        memberships = membership;
         let membershipHistory = await MembershipHistoryModel.create({
-            user: user.userId,
+            user: user._id,
             name: membership.name,
             subjects: membership.subjects.map((subject, idx) => subject._id),
             period: membership.period,
             price: membership.price
         });
         if (gateway === "paypal") {
+            console.log("PRIVATEPAYPAL")
             paypal.payment.create({
                 intent: "sale",
                 payer: {
@@ -37,7 +43,7 @@ const purchase = async (req, res) => {
                     cancel_url: `${process.env.HOSTNAME}/private-billing/paypal/cancel`
                 },
                 transactions: [{
-                    custom: user.userId,
+                    custom: user._id,
                     item_list: {
                         items: [{
                             name: membership.name,
@@ -63,11 +69,18 @@ const purchase = async (req, res) => {
                 }
             });
         } else if (gateway === "stripe") {
+            console.log("PRIVATESTRIPE====>", typeof user._id, user._id.toString())
+            let customer = await stripe.customers.create({
+                email: user.email,
+                name: "goldenpig"
+            });
+            console.log("CUSTOMER=======>", customer)
             let payment = await stripe.checkout.sessions.create({
                 mode: "payment",
-                client_reference_id: user.userId,
+                client_reference_id: user._id.toString(),
                 payment_method_types: ['card'],
-                customer_email: user.email,
+                customer: customer.id,
+                // customer_email: user.email,
                 line_items: [{
                     price_data: {
                         currency: 'AUD',
@@ -76,13 +89,16 @@ const purchase = async (req, res) => {
                             description: membership.description + " - " + moment().add(membership.period, 'months').format("YYYY-MM-DD HH:mm:ss"),
                             images: ["https://answersheet.au/logo.svg"]
                         },
-                        unit_amount: membership.price * 100
+                        unit_amount: membership.price * 100,
                     },
                     quantity: 1
                 }],
+                // success_url: `${process.env.HOSTNAME}/private-membership`,
+                // cancel_url: `${process.env.HOSTNAME}/private-membership`
                 success_url: `${process.env.HOSTNAME}/private-billing/stripe/return?session_id={CHECKOUT_SESSION_ID}&history_id=${membershipHistory._id}`,
                 cancel_url: `${process.env.HOSTNAME}/private-billing/stripe/cancel`
             });
+            console.log("PAYMENT_URL======>", payment.url)
             return res.json({
                 success: true,
                 redirect_url: payment.url
@@ -98,10 +114,12 @@ const purchase = async (req, res) => {
 
 const gatewayReturn = async (req, res) => {
     try {
+        console.log("PRIVATEGATEWAYRETURN")    
         let { paymentId, payerId, historyId } = req.query;
         let { gateway } = req.params;
 
         if (gateway === "paypal") {
+            console.log("PRIVATEGATEWAYPAYPAL")
             paypal.payment.execute(paymentId, {
                 payer_id: payerId
             }, async function (err, payment) {
@@ -145,7 +163,9 @@ const gatewayReturn = async (req, res) => {
                 });
             })
         } else if (gateway === "stripe") {
+            console.log("PRIVATEGATEWAYSTRIPE")
             let payment = await stripe.checkout.sessions.retrieve(paymentId);
+            console.log("PAYMENT====>", payment)
             let lineItems = await stripe.checkout.sessions.listLineItems(paymentId, { limit: 1 });
             let transaction = await stripe.paymentIntents.retrieve(payment.payment_intent);
             await TransactionModel.create({
@@ -179,29 +199,38 @@ const gatewayReturn = async (req, res) => {
                 currency: lineItems.data[0].currency,
                 paid_date: moment.unix(payment.created).format("YYYY-MM-DD HH:mm:ss")
             });
+            let sendEmailParams = {
+                invoiceId: invoice.id,
+                subjectsNum: history.subjects.length,
+                user,
+            }
+            await sendEmail(sendEmailParams, res);
             res.json({
                 success: true,
                 invoiceId: invoice.id,
                 membershipId: user.membership,
-                msg: "Successfully purchased!"
+                msg: "Successfully purchased! Please check your email."
             });
         }
     } catch (err) {
         res.json({
-            success: true,
+            success: false,
             msg: err.message
         });
     }
 }
 
-const invoice = async (req, res) => {
+const sendEmail = async (sendEmailParams, res) => {
     try {
-        let user = req.user;
-        let { invoiceId } = req.body;
+        let { user, invoiceId, subjectsNum } = sendEmailParams;
         let invoice = await InvoiceModel.findById(invoiceId);
+        let paidDate = moment(invoice.paid_date).format('MM/DD/YYYY');
         await sgMail.send({
             to: user.email,
-            from: process.env.SENDGRID_USER,
+            from: {
+                email: process.env.SENDGRID_USER,
+                name: process.env.SENDGRID_NAME
+            },
             subject: "Welcome to pay for membership.",
             html: `
             <div style="background: #fafafa; font-family: sans-serif; max-width: 660px; margin: auto">
@@ -212,66 +241,36 @@ const invoice = async (req, res) => {
                     <h2 style="color: #005492">Congratulations for purchasing our memberships.</h2>
                     <div style="max-width: 1000px">
                         <div style="word-wrap:break-word;border:1px solid rgba(0,0,0,0.175);border-radius:0.375rem;margin-bottom:1rem">
-                            <div style="padding:1.5rem;width:100%">
+                            <div style="padding:1.5rem;">
                                 <h3 style="color:#005492;margin-top:0;">Tax Invoice</h3>
-                                <div style="display:block;overflow:auto">
+                                <div style="display:flex;overflow:auto">
                                     <div style="display:block;margin-right:auto;max-width:350px;float:left">
-                                        <h4 style="color:#333333;margin-top:0; margin-bottom: .5rem;">To</h4>
-                                        <h4 style="color:#005492;margin-top:0;margin-bottom:.5rem;">${invoice.item_name}</h4>
-                                        <div style="display:flex">
-                                            <div style="margin-right:25px">
-                                                <div style="color:#505050;font-size:12px;line-height:1.5">Invoice Number</div>
-                                                <div style="color:#333333;font-size:16px;line-height:1.5;font-weight:600">${invoice.invoice_id}</div>
-                                            </div>
-                                            <div>
-                                                <div style="color:#505050;font-size:12px;line-height:1.5">Paid Date</div>
-                                                <div style="color:#333333;font-size:16px;line-height:1.5;font-weight:600">${moment(invoice.paid_date).format("DD MMM YYYY")}</div>
-                                            </div>
+                                        <h4 style="color:#333333;margin-top:0; margin-bottom: .5rem;">To: ${user.firstName} ${user.lastName}</h4>
+                                        <h4 style="color:#333333;margin-top:0; margin-bottom: .5rem;">Invoice Number: ${invoice.invoice_id}</h4>
+                                        <h4 style="color:#333333;margin-top:0; margin-bottom: .5rem;">Issued: ${paidDate}</h4>
+                                        <h4 style="color:#333333;margin-top:0; margin-bottom: .5rem;">Status: PAID</h4>
                                         </div>
-                                    </div>
                                     <div style="display:block;margin-left:auto;max-width:500px;float:right">
-                                        <h4 style="color:#333333;margin-top:0;margin-bottom:.5rem;">From</h5>
-                                            <div style="display:flex;margin-top:0">
-                                                <div style="width:100%;max-width:100%;padding-right:calc(1.5rem*.5);margin-top:0">
-                                                    <h4 style="color:#005492;margin-top:0;margin-bottom:.5rem;">${invoice.company}</h4>
-                                                    <p style="margin-bottom:0; font-size: 15px; line-height: 1.2;">${invoice.address}</p>
-                                                </div>
-                                                <div style="width:100%;max-width:100%;padding-right:calc(1.5rem*.5);margin-top:0">
-                                                    <h4 style="color:#005492;margin-top:0;margin-bottom:.5rem;">All Billing Enquiries</h4>
-                                                        <p style="margin-bottom:0">${invoice.email}</p>
-                                                </div>
-                                            </div>
+                                        <h4 style="color:#005492;margin-top:0;margin-bottom:.5rem;">From: AnswerSheet Pty Ltd</h4>
+                                        <h4 style="color:#005492;margin-top:0;margin-bottom:.5rem;">ACN: 665 324 541</h4>
                                     </div>
                                 </div>
                             </div>
                         </div>
                         <div style="display:flex;min-width:0;word-wrap:break-word;border:1px solid rgba(0,0,0,0.175);border-radius:0.375rem; margin-bottom: 1rem;">
                             <div style="width:100%;padding:1.5rem">
-                                <div style="display:block;overflow:auto;">
-                                    <h3 style="margin-top: 0; float:left">Item Description</h3>
-                                    <h3 style="margin-top: 0; float:right">Amount</h3>
-                                </div>
-                                <div style="display:block;overflow:auto;margin-bottom:1rem">
-                                    <div style="float:left">
-                                        <p style="margin-top:0px;font-size:15px;margin-bottom:.5rem">${invoice.item_name}</p>
-                                        <p style="margin-top:0px;font-size:15px;margin-bottom:.5rem">${invoice.item_description}</p>
-                                    </div>
-                                    <div style="float:right;font-size:15px">$${Number(invoice.amount - invoice.gst).toFixed(2)}</div>
-                                </div>
-                                <div
-                                    style="border-radius:5px;background-color:#d6e4f1;display:block;overflow:auto;padding:0px 20px;">
+                                <h3 style="margin-top: 0;">Description</h3>
+                                <p style="margin-top:0px;font-size:15px;margin-bottom:.5rem">${invoice.item_name} - ${subjectsNum} ${subjectsNum == 1 ? 'subject' : 'subjects'}</p>
+                                <ul>
+                                    
+                                </ul>
+                                <div style="border-radius:5px;background-color:#d6e4f1;display:block;overflow:auto;padding:0px 20px;">
                                     <div style="float:left;display:block;max-width:300px;width:100%">
-                                        <div style="overflow:auto">
-                                            <h3 style="float:left; margin-bottom: 0">Sub Total</h3>
-                                            <h3 style="float:right; margin-bottom: 0">$${Number(invoice.amount - invoice.gst).toFixed(2)}</h3>
-                                        </div>
-                                        <div style="overflow:auto">
-                                            <h3 style="float:left">Total GST 10%</h3>
-                                            <h3 style="float:right">${Number(invoice.gst).toFixed(2)}</h3>
-                                        </div>
+                                        <h3 style="margin-bottom:1rem">Subtotal: $${Number(invoice.amount - invoice.gst).toFixed(2)}</h3>
+                                        <h3>GST 10%: ${Number(invoice.gst).toFixed(2)}</h3>
                                     </div>
                                     <div style="float:right;text-align:right">
-                                        <h3 style="margin-bottom: 0">Amount Due Aus</h3>
+                                        <h3 style="margin-bottom: 0">Total inc.GST</h3>
                                         <h3>$${Number(invoice.amount).toFixed(2)}</h3>
                                     </div>
                                 </div>
@@ -288,10 +287,10 @@ const invoice = async (req, res) => {
             </div>
             `
         });
-        res.json({
-            success: true,
-            msg: "Successfully sent. Please check your email."
-        });
+        // res.json({
+        //     success: true,
+        //     msg: "Successfully sent. Please check your email."
+        // });
     } catch (err) {
         res.json({
             success: false,
@@ -303,5 +302,5 @@ const invoice = async (req, res) => {
 module.exports = {
     purchase,
     gatewayReturn,
-    invoice
+    // invoice
 }

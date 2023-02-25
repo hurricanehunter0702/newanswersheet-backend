@@ -42,7 +42,8 @@ const fetchById = async (req, res) => {
     let user = await UserModel.findById(id);
     let invoices = await InvoiceModel.find({ user: id });
     let memberships = await MembershipHistoryModel.find({
-        user: id
+        user: id,
+        isPaid: true
     }).populate({
         path: 'subjects', 
         populate: {
@@ -134,7 +135,10 @@ const updateProfile = async (req, res) => {
             });
             await sgMail.send({
                 to: user.email,
-                from: process.env.SENDGRID_USER,
+                from: {
+                    email: process.env.SENDGRID_USER,
+                    name: process.env.SENDGRID_NAME
+                },
                 subject: "AnswerSheet - your account is almost updated.",
                 html: `
                     <div style="background: #fafafa; font-family: sans-serif; max-width: 660px; margin: auto">
