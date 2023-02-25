@@ -1,5 +1,7 @@
 const YearModel = require("../../models/YearModel");
-const { slugify } = require("../../services/helper");
+const { slugify, getMainUrl } = require("../../services/helper");
+const path = require("path");
+const fs = require('fs');
 
 const fetch = async (req, res) => {
     let {search, length, page, sortKey, sortDir} = req.query;
@@ -42,13 +44,18 @@ const fetchAllPopulate = async (req, res) => {
 const create = async (req, res) => {
     try {
         let year = req.body;
+        if (req.file) {
+            year.image = getMainUrl(req) + `/uploads/years/${req.file.filename}`;
+        } else {
+            year.image = null;
+        }
         year.slug = slugify(year.name);
         let result = await YearModel.create(year);
         res.json({
             success: true,
             msg: "Successfully created!",
             data: result
-        })
+        });
     } catch (err) {
         res.json({
             success: false,
@@ -59,8 +66,16 @@ const create = async (req, res) => {
 
 const update = async (req, res) => {
     try {
-        let { id } = req.params;
         let year = req.body;
+        let { id } = req.params;
+        let currentYear = await YearModel.findById(id);
+        if (req.file) {
+            year.image = getMainUrl(req) + `/uploads/years/${req.file.filename}`;
+            if (currentYear.image) {
+                let fileName = path.basename(currentYear.image);
+                if (fileName && fs.existsSync(`public/uploads/years/${fileName}`)) fs.unlinkSync(`public/uploads/years/${fileName}`);
+            }
+        }
         let result = await YearModel.findByIdAndUpdate(id, year);
         res.json({
             success: true,
