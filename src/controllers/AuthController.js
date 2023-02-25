@@ -31,7 +31,10 @@ const register = async (req, res) => {
             });
             await sgMail.send({
                 to: user.email,
-                from: process.env.SENDGRID_USER,
+                from: {
+                    email: process.env.SENDGRID_USER,
+                    name: "AnswerSheet"
+                },
                 subject: "AnswerSheet - your account is almost ready",
                 html: `
                 <div style="background: #fafafa; font-family: sans-serif; max-width: 660px; margin: auto">

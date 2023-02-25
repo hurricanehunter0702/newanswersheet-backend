@@ -201,7 +201,10 @@ const invoice = async (req, res) => {
         let invoice = await InvoiceModel.findById(invoiceId);
         await sgMail.send({
             to: email,
-            from: process.env.SENDGRID_USER,
+            from: {
+                email: process.env.SENDGRID_USER,
+                name: "AnswerSheet"
+            },
             subject: "Congratulations for purchasing our memberships.",
             html: `
             <div style="background: #fafafa; font-family: sans-serif; max-width: 660px; margin: auto">
