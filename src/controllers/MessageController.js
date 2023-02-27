@@ -8,8 +8,8 @@ const create = async (req, res) => {
         let data = req.body;
         let message = await MessageModel.create(data);
         await sgMail.send({
-            // to: process.env.SUPPORT_RECEIVER,
-            to: 'hurricanehunter0702@gmail.com',
+            to: process.env.SUPPORT_RECEIVER,
+            // to: 'hurricanehunter0702@gmail.com',
             from: {
                 email: process.env.SENDGRID_USER,
                 name: process.env.SENDGRID_NAME
