@@ -63,7 +63,7 @@ const register = async (req, res) => {
             });
             res.json({
                 success: true,
-                msg: "Successfully registered, please check your email to activate.",
+                msg: "Check your email for a validation link to complete sign up.",
                 user: user
             });
         }
@@ -74,6 +74,73 @@ const register = async (req, res) => {
         });
     }
 }
+
+const premiumRegister = async (req, res) => {
+    let data = req.body;
+    try {
+        let salt = bcrypt.genSaltSync(10);
+        data.password = bcrypt.hashSync(data.password, salt);
+        let user = await UserModel.findOne({ email: data.email });
+        if (user) {
+            res.json({
+                success: false,
+                msg: "Email already exists, try logging in."
+            });
+        } else {
+            user = await UserModel.create(data);
+            let buffer = await crypto.randomBytes(30);
+            let token = buffer.toString('hex');
+            await EmailVerifyModel.create({
+                email: user.email,
+                token: token
+            });
+            console.log(user)
+            await sgMail.send({
+                to: user.email,
+                from: {
+                    email: process.env.SENDGRID_USER,
+                    name: process.env.SENDGRID_NAME
+                },
+                subject: "AnswerSheet - your account is almost ready",
+                html: `
+                <div style="background: #fafafa; font-family: sans-serif; max-width: 660px; margin: auto">
+                    <div style="padding: 10px; margin-bottom: 20px; background: #d6e4f1">
+                        <img src="${process.env.HOSTNAME}/logo.png"/>
+                    </div>
+                    <div style="padding: 10px 20px; border-top: 2px solid #ebebeb; border-bottom: 2px solid #ebebeb;">
+                        <h2 style="color: #005492;">Your account is almost ready</h2>
+                        <p>Hi ${user.firstName}</p>
+                        <p>Click below to finish your registration and access our HSC resource.</p>
+                        <div style="padding: 20px;">
+                            <a href="${process.env.HOSTNAME}/premium-verify-email/${token}" style="text-decoration: none; padding: 10px 30px; background: #005492; display: inline-block; color: #fafafa">Validate Email</a>
+                        </div>
+                        <p>This link expires in 72 hours.</p>
+                        <p>If you have any questions or didn't make this change, please contact us at support@answersheet.au</p>
+                        <p>Sincerely,</p>
+                        <p style="font-weight: 700;">The AnswerSheet team</p>
+                    </div>
+                    <div style="padding: 10px 20px; font-size: 12px;">
+                        <p style="margin-top: 5px; margin-bottom: 5px;">&copy; 2023 AnswerSheet Pty Ltd</p>
+                        <p style="margin-top: 5px; margin-bottom: 5px;">Our <a href="${process.env.HOSTNAME}/privacy-policy">Privacy Policy</a> explains how we collect, use, disclose, holds and secures personal information.</p>
+                        <p style="margin-top: 5px; margin-bottom: 5px;">Please do not reply to this email.</p>
+                    </div>
+                </div>
+                `
+            });
+            res.json({
+                success: true,
+                msg: "Check your email for a validation link to complete sign up.",
+                user: user
+            });
+        }
+    } catch (err) {
+        res.json({
+            success: false,
+            msg: err.message
+        });
+    }
+}
+
 const googleSignUp = async (req, res) => {
     try {
         const { access_token: token } = req.body;
@@ -98,8 +165,9 @@ const googleSignUp = async (req, res) => {
                 status: true,
                 password: password
             });
+            console.log("USER========>", user)
             let token = jwt.sign({
-                userId: user._id, email: user.email
+                userId: user._id.toString(), email: user.email
             }, "a1A!s2S@d3D#f4F$", {
                 expiresIn: "24h"
             });
@@ -524,6 +592,7 @@ const updatePassword = async (req, res) => {
 
 module.exports = {
     register,
+    premiumRegister,
     verifyEmail,
     verifyChangedEmail,
     forgotPwd,

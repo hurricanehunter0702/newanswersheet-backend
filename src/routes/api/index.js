@@ -46,7 +46,9 @@ const AdminMessageCtrl = require("../../controllers/admin/MessageController");
 const AdminTransactionCtrl = require("../../controllers/admin/TransactionController");
 
 const { normalMiddleware, userMiddleware, staffMiddleware, adminMiddleware } = require("../../middlewares/AuthMiddleware");
+const Invoice = require("../../models/InvoiceModel");
 router.post("/register", AuthCtrl.register);
+router.post("/premium-register", AuthCtrl.premiumRegister);
 router.post("/register/google", AuthCtrl.googleSignUp);
 router.get("/verify-email/:token", AuthCtrl.verifyEmail);
 router.get("/verify-changed-email/:token", AuthCtrl.verifyChangedEmail);
@@ -60,6 +62,7 @@ router.get("/memberships", MembershipCtrl.fetch);
 router.get("/memberships/get-membership-price", MembershipCtrl.getPrice);
 router.get("/memberships/:id", MembershipCtrl.fetchById);
 router.get('/my-memberships', userMiddleware, MembershipCtrl.getPurchasedMemberships);
+router.get('/my-invoices', userMiddleware, MembershipCtrl.getInvoices);
 router.get('/check-membership', userMiddleware, MembershipCtrl.checkPurchasedMembership);
 router.get("/years", YearCtrl.fetch);
 router.get("/subjects/get-subject-by-slug", SubjectCtrl.fetchBySlug);
@@ -74,6 +77,7 @@ router.post("/billing/:gateway", normalMiddleware, BillingCtrl.purchase);
 router.get("/billing/:gateway/return", normalMiddleware, BillingCtrl.gatewayReturn);
 router.post("/billing/:gateway/webhook", BillingCtrl.webhook);
 // router.post("/private-billing/invoice", userMiddleware, PrivateBillingCtrl.invoice);
+router.post("/private-billing", userMiddleware, PrivateBillingCtrl.emailMe);
 router.post("/private-billing/:gateway", userMiddleware, PrivateBillingCtrl.purchase);
 router.get("/private-billing/:gateway/return", userMiddleware, PrivateBillingCtrl.gatewayReturn);
 router.get("/invoices", userMiddleware, InvoiceCtrl.fetch);
@@ -87,6 +91,11 @@ router.get("/admin/users/me", staffMiddleware, AdminUserCtrl.fetchByMe);
 router.patch("/admin/users/me", staffMiddleware, AdminUserCtrl.updatePassword);
 router.get("/admin/users/:id", staffMiddleware, AdminUserCtrl.fetchById);
 router.delete("/admin/users/:id", staffMiddleware, AdminUserCtrl.remove);
+
+router.post("/admin/users/:id/invoice", adminMiddleware, InvoiceCtrl.create);
+router.put("/admin/users/:id/invoice", adminMiddleware, InvoiceCtrl.update);
+router.delete("/admin/users/:id/invoice/:invoiceId", adminMiddleware, InvoiceCtrl.deleteInvoice);
+router.post("/admin/users/:id/membership", adminMiddleware, MembershipCtrl.create);
 
 router.get("/admin/staffs", adminMiddleware, AdminStaffCtrl.fetch);
 router.get("/admin/staffs/:id", adminMiddleware, AdminStaffCtrl.fetchById);

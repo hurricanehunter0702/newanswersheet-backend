@@ -14,16 +14,19 @@ paypal.configure({
 });
 sgMail.setApiKey(process.env.SENDGRID_API_KEY);
 
-let memberships = [];
+let global_subjects = '';
 
 const purchase = async (req, res) => {
     try {
-        console.log("PRIVATEPURCHASE")    
+        console.log("PRIVATEPURCHASE")
         let user = await UserModel.findById(req.user.userId);
         let { gateway } = req.params;
         let { membership } = req.body;
+        global_subjects = '';
         console.log("MEMBERSHIP====>", membership);
-        memberships = membership;
+        for (let i = 0; i < membership.subjects.length; i++) {
+            global_subjects += `<li>${membership.subjects[i].year_name} - ${membership.subjects[i].name}</li>`;
+        }
         let membershipHistory = await MembershipHistoryModel.create({
             user: user._id,
             name: membership.name,
@@ -86,7 +89,8 @@ const purchase = async (req, res) => {
                         currency: 'AUD',
                         product_data: {
                             name: membership.name,
-                            description: membership.description + " - " + moment().add(membership.period, 'months').format("YYYY-MM-DD HH:mm:ss"),
+                            description: membership.description,
+                            // description: membership.description + " - " + moment().add(membership.period, 'months').format("YYYY-MM-DD HH:mm:ss"),
                             images: ["https://answersheet.au/logo.svg"]
                         },
                         unit_amount: membership.price * 100,
@@ -96,7 +100,7 @@ const purchase = async (req, res) => {
                 // success_url: `${process.env.HOSTNAME}/private-membership`,
                 // cancel_url: `${process.env.HOSTNAME}/private-membership`
                 success_url: `${process.env.HOSTNAME}/private-billing/stripe/return?session_id={CHECKOUT_SESSION_ID}&history_id=${membershipHistory._id}`,
-                cancel_url: `${process.env.HOSTNAME}/private-billing/stripe/cancel`
+                cancel_url: `${process.env.HOSTNAME}/current-membership`
             });
             console.log("PAYMENT_URL======>", payment.url)
             return res.json({
@@ -114,7 +118,7 @@ const purchase = async (req, res) => {
 
 const gatewayReturn = async (req, res) => {
     try {
-        console.log("PRIVATEGATEWAYRETURN")    
+        console.log("PRIVATEGATEWAYRETURN")
         let { paymentId, payerId, historyId } = req.query;
         let { gateway } = req.params;
 
@@ -144,9 +148,10 @@ const gatewayReturn = async (req, res) => {
                     });
                 }
                 let user = await UserModel.findById(payment.transactions[0].custom);
+                let lastInvoice = await InvoiceModel.findOne().sort({ invoice_id: -1 });
                 let invoice = await InvoiceModel.create({
                     user: payment.transactions[0].custom,
-                    invoice_id: "INV-" + uniqid(),
+                    invoice_id: lastInvoice ? lastInvoice.invoice_id + 1 : 11231,
                     item_name: payment.transactions[0].item_list.items[0].name,
                     item_description: payment.transactions[0].item_list.items[0].description,
                     amount: payment.transactions[0].item_list.items[0].price,
@@ -189,9 +194,13 @@ const gatewayReturn = async (req, res) => {
                 });
             }
             let user = await UserModel.findById(payment.client_reference_id);
+            console.log("PAYMENT=========>", payment)
+            console.log("LINEITEMS=========>", lineItems)
+            let lastInvoice = await InvoiceModel.findOne().sort({ invoice_id: -1 });
+            console.log("LASTINVOICE========>", lastInvoice)
             let invoice = await InvoiceModel.create({
                 user: payment.client_reference_id,
-                invoice_id: "INV-" + uniqid(),
+                invoice_id: lastInvoice ? lastInvoice.invoice_id + 1 : 11231,
                 item_name: lineItems.data[0].description,
                 item_description: lineItems.data[0].description,
                 amount: lineItems.data[0].amount_total / 100,
@@ -228,10 +237,10 @@ const sendEmail = async (sendEmailParams, res) => {
         await sgMail.send({
             to: user.email,
             from: {
-                email: process.env.SENDGRID_USER,
+                email: process.env.SENDGRID_INVOICE_SENDER,
                 name: process.env.SENDGRID_NAME
             },
-            subject: "Welcome to pay for membership.",
+            subject: `Answersheet - invoice INV-${invoice.invoice_id}`,
             html: `
             <div style="background: #fafafa; font-family: sans-serif; max-width: 660px; margin: auto">
                 <div style="padding: 10px; margin-bottom: 20px; background: #d6e4f1">
@@ -246,7 +255,7 @@ const sendEmail = async (sendEmailParams, res) => {
                                 <div style="display:flex;overflow:auto">
                                     <div style="display:block;margin-right:auto;max-width:350px;float:left">
                                         <h4 style="color:#333333;margin-top:0; margin-bottom: .5rem;">To: ${user.firstName} ${user.lastName}</h4>
-                                        <h4 style="color:#333333;margin-top:0; margin-bottom: .5rem;">Invoice Number: ${invoice.invoice_id}</h4>
+                                        <h4 style="color:#333333;margin-top:0; margin-bottom: .5rem;">Invoice Number: INV-${invoice.invoice_id}</h4>
                                         <h4 style="color:#333333;margin-top:0; margin-bottom: .5rem;">Issued: ${paidDate}</h4>
                                         <h4 style="color:#333333;margin-top:0; margin-bottom: .5rem;">Status: PAID</h4>
                                         </div>
@@ -262,7 +271,7 @@ const sendEmail = async (sendEmailParams, res) => {
                                 <h3 style="margin-top: 0;">Description</h3>
                                 <p style="margin-top:0px;font-size:15px;margin-bottom:.5rem">${invoice.item_name} - ${subjectsNum} ${subjectsNum == 1 ? 'subject' : 'subjects'}</p>
                                 <ul>
-                                    
+                                    ${global_subjects}
                                 </ul>
                                 <div style="border-radius:5px;background-color:#d6e4f1;display:block;overflow:auto;padding:0px 20px;">
                                     <div style="float:left;display:block;max-width:300px;width:100%">
@@ -299,8 +308,77 @@ const sendEmail = async (sendEmailParams, res) => {
     }
 }
 
+const emailMe = async (req, res) => {
+    try {
+        let { membership } = req.body;
+        let subjects_ = membership.subjects;
+        let detail = '';
+        for (let i = 0; i < subjects_.length; i++) {
+            detail += `<li>${subjects_[i].year.name} - ${subjects_[i].name}</li>`
+        }
+        let currentUntil = moment(membership.expiredDate).format('DD/MM/YYYY');
+        let expiredDate = moment(membership.expiredDate);
+        let today = moment(new Date());
+        let daysLeft = expiredDate.diff(today, 'days');
+        await sgMail.send({
+            to: req.user.email,
+            // to: 'hurricanehunter0702@gmail.com',
+            from: {
+                name: process.env.SENDGRID_NAME,
+                email: process.env.SENDGRID_USER
+            },
+            subject: 'My membership',
+            html: `
+                <div style="background: #fafafa; font-family: sans-serif; max-width: 660px; margin: auto">
+                    <div style="padding: 10px; margin-bottom: 20px; background: #d6e4f1">
+                        <img src="${process.env.HOSTNAME}/logo.svg" />
+                    </div>
+                    <div style="padding: 10px 20px; border-top: 2px solid #ebebeb; border-bottom: 2px solid #ebebeb;">
+                        <h2 style="color: #005492">Congratulations for purchasing our memberships.</h2>
+                        <div style="max-width: 1000px">
+                            <div style="word-wrap:break-word;border:1px solid rgba(0,0,0,0.175);border-radius:0.375rem;margin-bottom:1rem">
+                                <div style="padding:1.5rem;">
+                                    <h3 style="color:#005492;margin-top:0;">${membership.name}</h3>
+                                    <div style="display:flex;overflow:auto">
+                                        <div style="display:block;margin-right:auto;max-width:350px;float:left">
+                                            <h4 style="color:#333333;margin-top:0; margin-bottom: .5rem;">Current until: ${currentUntil}</h4>
+                                            <h4 style="color:#333333;margin-top:0; margin-bottom: .5rem;">Days left: ${daysLeft}</h4>
+                                        </div>
+                                        <div>
+                                            <p style="margin-top:0px;font-size:15px;margin-bottom:.5rem">Details: </p>
+                                            <ul>
+                                                ${detail}
+                                            </ul>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div style="padding: 10px 20px;">
+                        <p>&copy; 2023 AnswerSheet Pty Ltd</p>
+                        <p>Our <a href="./index.html">Privacy Policy</a> explains how we collect, use, disclose, holds and secures
+                            personal information.</p>
+                        <p>Please do not reply to this email.</p>
+                    </div>
+                </div>
+            `
+        });
+        res.json({
+            success: true,
+            msg: 'Successfully sent an email to you.'
+        });
+    } catch (err) {
+        res.json({
+            success: false,
+            msg: err.message
+        });
+    }
+}
+
 module.exports = {
     purchase,
     gatewayReturn,
-    // invoice
+    // invoice,
+    emailMe
 }
