@@ -4,6 +4,7 @@ const { slugify } = require("../../services/helper");
 
 const fetch = async (req, res) => {
     let { search, length, page, sortKey, sortDir } = req.query;
+    console.log(search);
     let sort = {};
     if (sortKey) {
         if (sortDir === "desc") sort[sortKey] = -1;
@@ -18,13 +19,18 @@ const fetch = async (req, res) => {
         name: new RegExp(search, "i")
     }).populate({
         path: "topic",
-        select: { _id: 1, name: 1 },
+        select: { _id: 1, name: 1, slug: 1 },
         populate: {
-            path: "subject",
-            select: { _id: 1, name: 1},
+            path: "module",
+            select: { _id: 1, name: 1, slug: 1 },
             populate: {
-                path: "year",
-                select: { _id: 1, name: 1 },
+                path: "subject",
+                select: { _id: 1, name: 1, slug: 1 },
+                populate: {
+                    path: "year",
+                    select: { _id: 1, name: 1, slug: 1 },
+                    sort: sort
+                },
                 options: {
                     sort: sort
                 }
@@ -50,10 +56,31 @@ const create = async (req, res) => {
     try {
         let subTopic = req.body;
         subTopic.slug = slugify(subTopic.name);
+        let topic = await TopicModel.findById(subTopic.topic).populate({
+            path: "module",
+            select: { name: true },
+            populate: {
+                path: "subject",
+                select: { name: true },
+                populate: {
+                    path: "year",
+                    select: { name: true }
+                }
+            }
+        });
+        subTopic.meta = {
+            title: `${topic.module.subject.name}/${topic.module.name}/${topic.name}/${subTopic.name}`,
+            author: "AnswerSheet Pty Ltd",
+            keywords: `${topic.module.subject.name}, ${topic.module.name}, ${topic.name}, ${subTopic.name}, HSC notes, HSC study guide, syllabus summaries, dot point notes`,
+            description: `${topic.module.subject.name} ${topic.module.name} ${topic.name} ${subTopic.name}`,
+            summary: "HSC study guide",
+            viewport: "width=device-Width, initial",
+            other: ""
+        }
         let result = await SubTopicModel.create(subTopic);
-        const topicById = await TopicModel.findById(subTopic.topic);
-        topicById.subTopics.push(result);
-        await topicById.save();
+        topic = await TopicModel.findById(subTopic.topic);
+        topic.subTopics.push(result);
+        await topic.save();
     
         res.json({
             success: true,
@@ -74,11 +101,15 @@ const fetchById = async (req, res) => {
             path: "topic",
             select: { _id: 1, name: 1 },
             populate: {
-                path: "subject",
+                path: "module",
                 select: { _id: 1, name: 1 },
                 populate: {
-                    path: "year",
-                    select: { _id: 1, name: 1 }
+                    path: "subject",
+                    select: { _id: 1, name: 1 },
+                    populate: {
+                        path: "year",
+                        select: { _id: 1, name: 1 }
+                    }
                 }
             }
         });
@@ -98,7 +129,18 @@ const update = async (req, res) => {
     try {
         let { id } = req.params;
         let subTopic = req.body;
-        let result = await SubTopicModel.findByIdAndUpdate(id, subTopic);
+        let result = await SubTopicModel.findById(id);
+
+        let topic = await TopicModel.findById(result.topic);
+        topic.subTopics.pull(id);
+        await topic.save();
+
+        result = await result.update(subTopic);
+
+        topic = await TopicModel.findById(subTopic.topic);
+        topic.subTopics.push(id);
+        await topic.save();
+
         res.json({
             success: true,
             data: result,
@@ -115,9 +157,9 @@ const update = async (req, res) => {
 const remove = async (req, res) => {
     const { id } = req.params;
     const subTopic = await SubTopicModel.findByIdAndDelete(id);
-    const topicById = await TopicModel.findById(subTopic.topic);
-    topicById.subTopics.pull(id);
-    await topicById.save();
+    const topic = await TopicModel.findById(subTopic.topic);
+    topic.subTopics.pull(id);
+    await topic.save();
     res.json({
         success: true
     });

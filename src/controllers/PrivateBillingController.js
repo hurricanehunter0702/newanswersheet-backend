@@ -52,14 +52,19 @@ const purchase = async (req, res) => {
                             name: membership.name,
                             sku: "item",
                             currency: "AUD",
-                            price: membership.price,
+                            price: (membership.price / 1.11).toFixed(2),
+                            tax: ((membership.price / 1.11) * 0.11).toFixed(2),
                             quantity: 1,
                             description: membership.description
                         }]
                     },
                     amount: {
                         currency: "AUD",
-                        total: membership.price
+                        total: membership.price,
+                        details: {
+                            subtotal: (membership.price / 1.11).toFixed(2),
+                            tax: ((membership.price / 1.11) * 0.11).toFixed(2)
+                        }
                     }
                 }]
             }, function (err, payment) {
@@ -72,12 +77,13 @@ const purchase = async (req, res) => {
                 }
             });
         } else if (gateway === "stripe") {
-            console.log("PRIVATESTRIPE====>", typeof user._id, user._id.toString())
-            let customer = await stripe.customers.create({
-                email: user.email,
-                name: "goldenpig"
+            const taxRate = await stripe.taxRates.create({
+                display_name: 'GST',
+                description: 'Goods & Service Tax',
+                jurisdiction: 'AU',
+                percentage: 11,
+                inclusive: false,
             });
-            console.log("CUSTOMER=======>", customer)
             let payment = await stripe.checkout.sessions.create({
                 mode: "payment",
                 client_reference_id: user._id.toString(),
@@ -93,8 +99,9 @@ const purchase = async (req, res) => {
                             // description: membership.description + " - " + moment().add(membership.period, 'months').format("YYYY-MM-DD HH:mm:ss"),
                             images: ["https://answersheet.au/logo.svg"]
                         },
-                        unit_amount: membership.price * 100,
+                        unit_amount: (membership.price / 1.11).toFixed(2) * 100
                     },
+                    tax_rates: [taxRate.id],
                     quantity: 1
                 }],
                 // success_url: `${process.env.HOSTNAME}/private-membership`,
@@ -154,7 +161,7 @@ const gatewayReturn = async (req, res) => {
                     invoice_id: lastInvoice ? lastInvoice.invoice_id + 1 : 11231,
                     item_name: payment.transactions[0].item_list.items[0].name,
                     item_description: payment.transactions[0].item_list.items[0].description,
-                    amount: payment.transactions[0].item_list.items[0].price,
+                    amount: payment.transactions[0].amount.total,
                     gst: payment.transactions[0].item_list.items[0].tax,
                     currency: payment.transactions[0].item_list.items[0].currency,
                     paid_date: moment(payment.create_time).format("YYYY-MM-DD HH:mm:ss")
@@ -296,10 +303,10 @@ const sendEmail = async (sendEmailParams, res) => {
             </div>
             `
         });
-        // res.json({
-        //     success: true,
-        //     msg: "Successfully sent. Please check your email."
-        // });
+        res.json({
+             success: true,
+             msg: "Successfully sent. Please check your email."
+        });
     } catch (err) {
         res.json({
             success: false,
