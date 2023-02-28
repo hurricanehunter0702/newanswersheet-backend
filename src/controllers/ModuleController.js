@@ -1,10 +1,11 @@
 const YearModel = require("../models/YearModel");
 const SubjectModel = require("../models/SubjectModel");
+const ModuleModel = require("../models/ModuleModel");
 
 const fetchById = async (req, res) => {
     try {
         let { id } = req.params;
-        let subject = await SubjectModel.findById(id).populate("topics");
+        let subject = await ModuleModel.findById(id).populate("topics");
         res.json({
             status: true,
             data: subject
@@ -19,15 +20,16 @@ const fetchById = async (req, res) => {
 
 const fetchBySlug = async (req, res) => {
     try {
-        let { year_slug, subject_slug } = req.query;
-        let year = await YearModel.findOne({ slug: year_slug });
-        let subject = await SubjectModel.findOne({ 
-            year: year._id, 
-            slug: subject_slug 
-        }).populate("modules");
+        let { year_slug, subject_slug, module_slug } = req.query;
+        let year = await YearModel.findOne({ slug: year_slug }).select({_id: true});
+        let subject = await SubjectModel.findOne({ year: year._id, slug: subject_slug }).select({ _id: true });
+        let module = await ModuleModel.findOne({ 
+            subject: subject._id, 
+            slug: module_slug 
+        }).populate("topics");
         res.json({
             status: true,
-            data: subject
+            data: module
         });
     } catch (err) {
         res.json({

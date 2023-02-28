@@ -13,17 +13,35 @@ const SubTopicSchema = mongoose.Schema({
         type: String,
         required: true
     },
-    year: {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: 'Year'
-    },
-    subject: {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: 'Subject'
-    },
     topic: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'Topic'
+    },
+    meta: {
+        title: {
+            type: String
+        },
+        description: {
+            type: String
+        },
+        keywords: {
+            type: String
+        },
+        author: {
+            type: String
+        },
+        summary: {
+            type: String
+        },
+        summary: {
+            type: String
+        },
+        viewport: {
+            type: String
+        },
+        other: {
+            type: String
+        }
     },
     permission: {
         type: Number,
