@@ -5,7 +5,6 @@ const SubjectModel = require("../../models/SubjectModel");
 const ModuleModel = require("../../models/ModuleModel");
 const TopicModel = require("../../models/TopicModel");
 const SubTopicModel = require("../../models/SubTopicModel");
-
 const { getMainUrl, slugify } = require("../../services/helper");
 
 const fetch = async (req, res) => {
@@ -64,7 +63,7 @@ const create = async (req, res) => {
             status: true,
             msg: "Successfully created!",
             data: result
-        })
+        });
     } catch (err) {
         res.json({
             status: false,
@@ -75,8 +74,16 @@ const create = async (req, res) => {
 
 const update = async (req, res) => {
     try {
-        let { id } = req.params;
         let year = req.body;
+        let { id } = req.params;
+        let currentYear = await YearModel.findById(id);
+        if (req.file) {
+            year.image = getMainUrl(req) + `/uploads/years/${req.file.filename}`;
+            if (currentYear.image) {
+                let fileName = path.basename(currentYear.image);
+                if (fileName && fs.existsSync(`public/uploads/years/${fileName}`)) fs.unlinkSync(`public/uploads/years/${fileName}`);
+            }
+        }
         let result = await YearModel.findByIdAndUpdate(id, year);
         res.json({
             status: true,

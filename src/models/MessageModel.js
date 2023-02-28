@@ -10,6 +10,10 @@ const MessageSchema = mongoose.Schema({
         required: true,
         match: /.+\@.+\..+/,
     },
+    enquiryNature: {
+        type: String,
+        required: true
+    },
     message: {
         type: String
     },

@@ -57,7 +57,10 @@ const create = async (req, res) => {
             if (isSendInstructions) {
                 await sgMail.send({
                     to: user.email,
-                    from: process.env.SENDGRID_USER,
+                    from: {
+                        email: process.env.SENDGRID_USER,
+                        name: process.env.SENDGRID_NAME
+                    },
                     subject: "AnswerSheet - accessing your staff account",
                     html: `
                     <div style="background: #fafafa; font-family: sans-serif; max-width: 660px; margin: auto">

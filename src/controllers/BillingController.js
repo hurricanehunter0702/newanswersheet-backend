@@ -17,6 +17,7 @@ sgMail.setApiKey(process.env.SENDGRID_API_KEY)
 
 const purchase = async (req, res) => {
     try {
+        console.log("PURCHASE")
         let { gateway } = req.params;
         let { user, membership } = req.body;
         let membershipHistory = await MembershipHistoryModel.create({
@@ -58,19 +59,20 @@ const purchase = async (req, res) => {
                         }
                     }
                 }]
-            }, function(err, payment) {
+            }, function (err, payment) {
                 if (err) throw err;
                 else {
+                    console.log("PAYMENT=====>", payment);
                     res.json({
                         success: true,
                         redirect_url: payment.links[1].href
                     });
                 }
             });
-        } else  if (gateway === "stripe") {
+        } else if (gateway === "stripe") {
             let description = `${membership.name} - ${membership.subjects.length} ${membership.subjects.length > 1 ? 'subjects' : 'subject'}`;
             membership.subjects.forEach((subject, idx) => {
-                description +=  `${subject.year_name} - ${subject.name}`;
+                description += `${subject.year_name} - ${subject.name}`;
             });
             const taxRate = await stripe.taxRates.create({
                 display_name: 'GST',
@@ -98,8 +100,9 @@ const purchase = async (req, res) => {
                     quantity: 1
                 }],
                 success_url: `${process.env.HOSTNAME}/billing/stripe/return?session_id={CHECKOUT_SESSION_ID}&history_id=${membershipHistory._id}`,
-                cancel_url: `${process.env.HOSTNAME}/billing/stripe/cancel` 
+                cancel_url: `${process.env.HOSTNAME}/billing/stripe/cancel`
             });
+            console.log("PAYMENT=====>", payment);
             return res.json({
                 success: true,
                 redirect_url: payment.url
@@ -115,13 +118,14 @@ const purchase = async (req, res) => {
 
 const gatewayReturn = async (req, res) => {
     try {
+        console.log("GATEWAYRETURN")
         let { paymentId, payerId, historyId } = req.query;
         let { gateway } = req.params;
 
         if (gateway === "paypal") {
             paypal.payment.execute(paymentId, {
                 payer_id: payerId,
-            }, async function(err, payment) {
+            }, async function (err, payment) {
                 await TransactionModel.create({
                     user: payment.transactions[0].custom,
                     transaction_id: payment.transactions[0].related_resources[0].sale.id,
@@ -138,7 +142,7 @@ const gatewayReturn = async (req, res) => {
                         expiredDate: expiredDate
                     });
                 } else {
-                    await history.update({isPaid: true});
+                    await history.update({ isPaid: true });
                 }
                 let user = await UserModel.findById(payment.transactions[0].custom);
                 let invoice = await InvoiceModel.create({
@@ -153,7 +157,7 @@ const gatewayReturn = async (req, res) => {
                 });
 
                 res.json({
-                    success: true, 
+                    success: true,
                     email: user.email,
                     invoiceId: invoice.id,
                     msg: "Successfully purchased! Right now you need to verify email. Please check your email."
@@ -161,7 +165,7 @@ const gatewayReturn = async (req, res) => {
             });
         } else if (gateway === "stripe") {
             let payment = await stripe.checkout.sessions.retrieve(paymentId);
-            let lineItems = await stripe.checkout.sessions.listLineItems(paymentId, {limit: 1});
+            let lineItems = await stripe.checkout.sessions.listLineItems(paymentId, { limit: 1 });
             let transaction = await stripe.paymentIntents.retrieve(payment.payment_intent);
             await TransactionModel.create({
                 user: payment.client_reference_id,
@@ -179,7 +183,7 @@ const gatewayReturn = async (req, res) => {
                     expiredDate: expiredDate
                 });
             } else {
-                await history.update({isPaid: true});
+                await history.update({ isPaid: true });
             }
             let user = await UserModel.findById(payment.client_reference_id);
             let invoice = await InvoiceModel.create({
@@ -192,10 +196,10 @@ const gatewayReturn = async (req, res) => {
                 currency: lineItems.data[0].currency,
                 paid_date: moment.unix(payment.created).format("YYYY-MM-DD HH:mm:ss")
             });
-            
+
             res.json({
                 success: true,
-                email: user.email, 
+                email: user.email,
                 invoiceId: invoice.id,
                 msg: "Successfully purchased! Right now you need to verify email. Please check your email."
             });
@@ -210,13 +214,14 @@ const gatewayReturn = async (req, res) => {
 
 const invoice = async (req, res) => {
     try {
+        console.log("INVOICE")    
         let { email, invoiceId } = req.body;
         let invoice = await InvoiceModel.findById(invoiceId);
         await sgMail.send({
             to: email,
             from: {
                 email: process.env.SENDGRID_USER,
-                name: "AnswerSheet"
+                name: process.env.SENDGRID_NAME
             },
             subject: "Congratulations for purchasing our memberships.",
             html: `
@@ -317,6 +322,7 @@ const invoice = async (req, res) => {
 }
 
 const webhook = async (req, res) => {
+    console.log("WEBHOOK")
     try {
         let { gateway } = req.params;
         if (gateway === "paypal") {
@@ -335,11 +341,11 @@ const webhook = async (req, res) => {
                 });
             } else if (req.body.event_type === "BILLING.SUBSCRIPTION.PAYMENT.FAILED") {
                 let { id } = req.body.resource;
-                let transaction = await TransactionModel.findOne({subscription_id: id});
+                let transaction = await TransactionModel.findOne({ subscription_id: id });
                 await UserModel.findByIdAndUpdate(transaction.user_id, {
                     isPaid: false
                 });
-            }    
+            }
         } else if (gateway === "stripe") {
             let event = req.body;
             const webhookSecret = "whsec_d32a409985da76aa0db24743e6c9205eee392d5120795a876bdd7c5e8d17289f";
@@ -369,7 +375,7 @@ const webhook = async (req, res) => {
                         limit: 1
                     });
                     let transaction = transactions.data[0];
-                    localTransaction = await TransactionModel.findOne({subscription_id: subscription.id});
+                    localTransaction = await TransactionModel.findOne({ subscription_id: subscription.id });
                     await TransactionModel.create({
                         user_id: localTransaction.user_id,
                         transaction_id: transaction.id,
@@ -382,7 +388,7 @@ const webhook = async (req, res) => {
                 case "customer.subscription.deleted":
                     subscription = event.data.object;
                     status = subscription.status;
-                    localTransaction = await TransactionModel.findOne({subscription_id: subscription.id});
+                    localTransaction = await TransactionModel.findOne({ subscription_id: subscription.id });
                     await UserModel.findByIdAndUpdate(localTransaction.user_id, {
                         isPaid: false
                     });

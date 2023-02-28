@@ -20,6 +20,17 @@ const subjectUpload = multer({
         fileSize: 10000000
     }
 });
+const yearUpload = multer({
+    storage: multer.diskStorage({
+        destination: "public/uploads/years",
+        filename: (req, file, cb) => {
+            cb(null, file.fieldname + "_" + Date.now() + path.extname(file.originalname));
+        }
+    }),
+    limit: {
+        fileSize: 10000000
+    }
+});
 
 const router = express.Router();
 const AuthCtrl = require("../../controllers/AuthController");
@@ -74,7 +85,7 @@ router.post("/billing/invoice", BillingCtrl.invoice);
 router.post("/billing/:gateway", normalMiddleware, BillingCtrl.purchase);
 router.get("/billing/:gateway/return", normalMiddleware, BillingCtrl.gatewayReturn);
 router.post("/billing/:gateway/webhook", BillingCtrl.webhook);
-router.post("/private-billing/invoice", userMiddleware, PrivateBillingCtrl.invoice);
+// router.post("/private-billing/invoice", userMiddleware, PrivateBillingCtrl.invoice);
 router.post("/private-billing/:gateway", userMiddleware, PrivateBillingCtrl.purchase);
 router.get("/private-billing/:gateway/return", userMiddleware, PrivateBillingCtrl.gatewayReturn);
 router.get("/invoices", userMiddleware, InvoiceCtrl.fetch);
@@ -101,7 +112,7 @@ router.get("/admin/years", staffMiddleware, AdminYearCtrl.fetch);
 router.get("/admin/years/get-all", staffMiddleware, AdminYearCtrl.fetchAll);
 router.get("/admin/years/get-all-populate", staffMiddleware, AdminYearCtrl.fetchAllPopulate);
 router.post("/admin/years", staffMiddleware, yearUpload.single("image"), AdminYearCtrl.create);
-router.put("/admin/years/:id", staffMiddleware, AdminYearCtrl.update);
+router.put("/admin/years/:id", staffMiddleware, yearUpload.single("image"), AdminYearCtrl.update);
 router.delete("/admin/years/:id", staffMiddleware, AdminYearCtrl.remove);
 
 router.get("/admin/subjects", staffMiddleware, AdminSubjectCtrl.fetch);
