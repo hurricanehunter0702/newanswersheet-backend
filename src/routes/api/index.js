@@ -1,11 +1,19 @@
 const express = require("express");
 const path = require("path");
 const multer = require("multer");
+const yearUpload = multer({
+    storage: multer.diskStorage({
+        destination: "public/uploads/years",
+        filename: (req, file, cb) => {
+            cb(null, "year_" + Date.now() + path.extname(file.originalname));
+        }
+    })
+})
 const subjectUpload = multer({
     storage: multer.diskStorage({
         destination: "public/uploads/subjects",
         filename: (req, file, cb) => {
-            cb(null, file.fieldname + "_" + Date.now() + path.extname(file.originalname));
+            cb(null, "subject_" + Date.now() + path.extname(file.originalname));
         }
     }),
     limit: {
@@ -18,6 +26,7 @@ const AuthCtrl = require("../../controllers/AuthController");
 const MembershipCtrl = require("../../controllers/MembershipController");
 const YearCtrl = require("../../controllers/YearController");
 const SubjectCtrl = require("../../controllers/SubjectController");
+const ModuleCtrl = require("../../controllers/ModuleController");
 const TopicCtrl = require("../../controllers/TopicController");
 const SubTopicCtrl = require("../../controllers/SubTopicController");
 const MessageCtrl = require("../../controllers/MessageController");
@@ -28,6 +37,7 @@ const AdminUserCtrl = require("../../controllers/admin/UserController");
 const AdminStaffCtrl = require("../../controllers/admin/StaffController");
 const AdminYearCtrl = require("../../controllers/admin/YearController");
 const AdminSubjectCtrl = require("../../controllers/admin/SubjectController");
+const AdminModuleCtrl = require("../../controllers/admin/ModuleController");
 const AdminTopicCtrl = require("../../controllers/admin/TopicController");
 const AdminSubTopicCtrl = require("../../controllers/admin/SubTopicController");
 const AdminMembershipPricingCtrl = require("../../controllers/admin/PricingController");
@@ -53,6 +63,8 @@ router.get('/check-membership', userMiddleware, MembershipCtrl.checkPurchasedMem
 router.get("/years", YearCtrl.fetch);
 router.get("/subjects/get-subject-by-slug", SubjectCtrl.fetchBySlug);
 router.get("/subjects/:id", SubjectCtrl.fetchById);
+router.get("/modules/get-module-by-slug", ModuleCtrl.fetchBySlug);
+router.get("/modules/:id", ModuleCtrl.fetchById);
 router.get("/topics/get-topic-by-slug", TopicCtrl.fetchBySlug);
 router.get("/topics/:id", TopicCtrl.fetchById);
 router.get("/sub-topics/get-subtopic-by-slug", SubTopicCtrl.fetchBySlug);
@@ -88,7 +100,7 @@ router.delete("/admin/staffs/:id", adminMiddleware, AdminStaffCtrl.remove);
 router.get("/admin/years", staffMiddleware, AdminYearCtrl.fetch);
 router.get("/admin/years/get-all", staffMiddleware, AdminYearCtrl.fetchAll);
 router.get("/admin/years/get-all-populate", staffMiddleware, AdminYearCtrl.fetchAllPopulate);
-router.post("/admin/years", staffMiddleware, AdminYearCtrl.create);
+router.post("/admin/years", staffMiddleware, yearUpload.single("image"), AdminYearCtrl.create);
 router.put("/admin/years/:id", staffMiddleware, AdminYearCtrl.update);
 router.delete("/admin/years/:id", staffMiddleware, AdminYearCtrl.remove);
 
@@ -97,6 +109,12 @@ router.post("/admin/subjects", staffMiddleware, subjectUpload.single("icon"), Ad
 router.get("/admin/subjects/:id", staffMiddleware, AdminSubjectCtrl.fetchById);
 router.put("/admin/subjects/:id", staffMiddleware, subjectUpload.single("icon"), AdminSubjectCtrl.update);
 router.delete("/admin/subjects/:id", staffMiddleware, AdminSubjectCtrl.remove);
+
+router.get("/admin/modules", staffMiddleware, AdminModuleCtrl.fetch);
+router.post("/admin/modules", staffMiddleware, AdminModuleCtrl.create);
+router.get("/admin/modules/:id", staffMiddleware, AdminModuleCtrl.fetchById);
+router.put("/admin/modules/:id", staffMiddleware, AdminModuleCtrl.update);
+router.delete("/admin/modules/:id", staffMiddleware, AdminModuleCtrl.remove);
 
 router.get("/admin/topics", staffMiddleware, AdminTopicCtrl.fetch);
 router.post("/admin/topics", staffMiddleware, AdminTopicCtrl.create);

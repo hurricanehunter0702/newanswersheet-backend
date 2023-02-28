@@ -25,7 +25,6 @@ const fetchBySlug = async (req, res) => {
         let year = await YearModel.findOne({ slug: year_slug }).select("_id");
         let subject = await SubjectModel.findOne({ year: year._id, slug: subject_slug }).select("_id");
         let topic = await TopicModel.findOne({ subject: subject._id, slug: topic_slug }).select("_id");
-        console.log("TOPIC", topic);
         let subtopic = await SubTopicModel.findOne({ topic: topic._id, slug: subtopic_slug });
         res.json({
             success: true,

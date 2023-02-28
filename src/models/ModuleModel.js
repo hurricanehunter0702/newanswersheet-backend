@@ -1,10 +1,10 @@
 const mongoose = require("mongoose");
 
-const TopicSchema = mongoose.Schema({
+const ModuleSchema = mongoose.Schema({
     name: {
         type: String,
         required: true
-    }, 
+    },
     slug: {
         type: String,
         required: true
@@ -12,18 +12,18 @@ const TopicSchema = mongoose.Schema({
     description: {
         type: String
     },
-    module: {
+    subject: {
         type: mongoose.Schema.Types.ObjectId,
-        ref: 'Module'
+        ref: "Subject"
     },
-    subTopics: [{
+    topics: [{
         type: mongoose.Schema.Types.ObjectId,
-        ref: 'SubTopic'
+        ref: "Topic"
     }]
 }, {
     timestamps: true
 });
 
-const Topic = mongoose.model('Topic', TopicSchema);
+const Module = mongoose.model("Module", ModuleSchema);
 
-module.exports = Topic;
+module.exports = Module;

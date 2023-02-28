@@ -1,5 +1,6 @@
 const YearModel = require("../models/YearModel");
 const SubjectModel = require("../models/SubjectModel");
+const ModuleModel = require("../models/ModuleModel");
 const TopicModel = require("../models/TopicModel");
 
 const fetchById = async (req, res) => {
@@ -20,10 +21,11 @@ const fetchById = async (req, res) => {
 
 const fetchBySlug = async (req, res) => {
     try {
-        let { year_slug, subject_slug, topic_slug } = req.query;
+        let { year_slug, subject_slug, module_slug, topic_slug } = req.query;
         let year = await YearModel.findOne({ slug: year_slug }).select("_id");
         let subject = await SubjectModel.findOne({ year: year._id, slug: subject_slug }).select("_id");
-        let topic = await TopicModel.findOne({ year: year._id, subject: subject._id, slug: topic_slug }).populate("subTopics");
+        let module = await ModuleModel.findOne({ subject: subject._id, slug: module_slug }).select("_id");
+        let topic = await TopicModel.findOne({ module: module._id, slug: topic_slug }).populate("subTopics");
         res.json({
             success: true,
             data: topic

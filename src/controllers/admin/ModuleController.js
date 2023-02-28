@@ -1,37 +1,32 @@
+const SubjectModel = require("../../models/SubjectModel");
 const ModuleModel = require("../../models/ModuleModel");
 const TopicModel = require("../../models/TopicModel");
 const SubTopicModel = require("../../models/SubTopicModel");
+
 const { slugify } = require("../../services/helper");
 
 const fetch = async (req, res) => {
-    let { search, length, page, sortKey, sortDir } = req.query
-    let sort = {};
+    let { search, length, page, sortKey, sortDir } = req.body;
+    let sort = {}
     if (sortKey) {
         if (sortDir === "desc") sort[sortKey] = -1;
         else sort[sortKey] = 1;
-    }
+    } 
 
-    let totalCount = await TopicModel.find({
+    let totalCount = await ModuleModel.find({
         name: new RegExp(search, "i")
     }).count();
-    
-    let data = await TopicModel.find({
-        name: new RegExp(search, "i")
+
+    let data = await ModuleModel.find({
+        name: RegExp(search, "i")
     }).populate({
-        path: "module",
+        path: "subject",
         select: { _id: 1, name: 1 },
         populate: {
-            path: "subject",
+            path: "year",
             select: { _id: 1, name: 1 },
             options: {
                 sort: sort
-            },
-            populate: {
-                path: "year",
-                select: { _id: 1, name: 1 },
-                options: {
-                    sort: sort
-                }
             }
         },
         options: {
@@ -49,13 +44,13 @@ const fetch = async (req, res) => {
 
 const create = async (req, res) => {
     try {
-        let topic = req.body;
-        topic.slug = slugify(topic.name);
-        let result = await TopicModel.create(topic);
+        let module = req.body;
+        module.slug = slugify(module.name);
+        let result = await ModuleModel.create(module);
 
-        const module = await ModuleModel.findById(result.module);
-        module.topics.push(result);
-        await module.save();
+        const subject = await SubjectModel.findById(result.subject);
+        subject.modules.push(result);
+        await subject.save();
 
         res.json({
             status: true,
@@ -73,7 +68,7 @@ const create = async (req, res) => {
 const fetchById = async (req, res) => {
     try {
         let { id } = req.params;
-        let topic = await TopicModel.findById(id).populate({
+        let module = await ModuleModel.findById(id).populate({
             path: "subject",
             select: { _id: 1, name: 1},
             populate: {
@@ -83,7 +78,7 @@ const fetchById = async (req, res) => {
         });
         res.json({
             status: true,
-            data: topic
+            data: module
         });
     } catch (err) {
         res.json({
@@ -91,25 +86,24 @@ const fetchById = async (req, res) => {
             msg: err.message
         });
     }
-
 }
 
 const update = async (req, res) => {
     try {
         let { id } = req.params;
-        let topic  = req.body;
-        let result = await TopicModel.findById(id);
+        let module  = req.body;
+        let result = await ModuleModel.findById(id);
 
-        let module = await ModuleModel.findById(result.module);
-        module.topics.pull(id);
-        await module.save();
+        let subject = await SubjectModel.findById(result.subject);
+        subject.modules.pull(id);
+        await subject.save();
 
-        result = await result.update(topic);
+        result = await result.update(module);
 
-        module = await ModuleModel.findById(topic.module);
-        module.topics.push(id);
-        await module.save();
-        
+        subject = await SubjectModel.findById(module.subject);
+        subject.modules.push(id);
+        await subject.save();
+
         res.json({
             status: true,
             data: result,
@@ -126,16 +120,17 @@ const update = async (req, res) => {
 const remove = async (req, res) => {
     try {
         let { id } = req.params;
-        let topic = await TopicModel.findByIdAndDelete(id);
-        
-        let module = await ModuleModel.findById(topic.module);
-        module.topics.pull(id);
-        await module.save();
-
-        await SubTopicModel.deleteMany({ topic: id })
+        let topics = await TopicModel.find({ module: id });
+        let topicIds = topics.map(topic => topic._id);
+        let module = await ModuleModel.findByIdAndDelete(id);
+        let subject = await SubjectModel.findById(module.subject);
+        subject.modules.pull(id);
+        await subject.save();
+        await TopicModel.deleteMany({ module: id });
+        await SubTopicModel.deleteMany({ topic: { $in: topicIds} });
         res.json({
             status: true,
-            data: topic,
+            data: module,
             msg: "Successfully deleted!"
         });
     } catch (err) {

@@ -43,14 +43,19 @@ const purchase = async (req, res) => {
                             name: membership.name,
                             sku: "item",
                             currency: "AUD",
-                            price: membership.price,
+                            price: (membership.price / 1.11).toFixed(2),
+                            tax: ((membership.price / 1.11) * 0.11).toFixed(2),
                             quantity: 1,
                             description: membership.description
                         }]
                     },
                     amount: {
                         currency: "AUD",
-                        total: membership.price
+                        total: membership.price,
+                        details: {
+                            subtotal: (membership.price / 1.11).toFixed(2),
+                            tax: ((membership.price / 1.11) * 0.11).toFixed(2)
+                        }
                     }
                 }]
             }, function (err, payment) {
@@ -63,6 +68,14 @@ const purchase = async (req, res) => {
                 }
             });
         } else if (gateway === "stripe") {
+            const taxRate = await stripe.taxRates.create({
+                display_name: 'GST',
+                description: 'Goods & Service Tax',
+                jurisdiction: 'AU',
+                percentage: 11,
+                inclusive: false,
+            });
+
             let payment = await stripe.checkout.sessions.create({
                 mode: "payment",
                 client_reference_id: user.userId,
@@ -76,8 +89,9 @@ const purchase = async (req, res) => {
                             description: membership.description + " - " + moment().add(membership.period, 'months').format("YYYY-MM-DD HH:mm:ss"),
                             images: ["https://answersheet.au/logo.svg"]
                         },
-                        unit_amount: membership.price * 100
+                        unit_amount: (membership.price / 1.11).toFixed(2) * 100
                     },
+                    tax_rates: [taxRate.id],
                     quantity: 1
                 }],
                 success_url: `${process.env.HOSTNAME}/private-billing/stripe/return?session_id={CHECKOUT_SESSION_ID}&history_id=${membershipHistory._id}`,
@@ -131,7 +145,7 @@ const gatewayReturn = async (req, res) => {
                     invoice_id: "INV-" + uniqid(),
                     item_name: payment.transactions[0].item_list.items[0].name,
                     item_description: payment.transactions[0].item_list.items[0].description,
-                    amount: payment.transactions[0].item_list.items[0].price,
+                    amount: payment.transactions[0].amount.total,
                     gst: payment.transactions[0].item_list.items[0].tax,
                     currency: payment.transactions[0].item_list.items[0].currency,
                     paid_date: moment(payment.create_time).format("YYYY-MM-DD HH:mm:ss")
