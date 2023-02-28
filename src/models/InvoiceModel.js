@@ -7,8 +7,9 @@ const InvoiceSchema = mongoose.Schema({
         required: true
     },
     invoice_id: {
-        type: String,
-        required: true
+        type: Number,
+        required: true,
+        unique: true
     },
     item_name: {
         type: String,

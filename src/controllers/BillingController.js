@@ -19,9 +19,10 @@ const purchase = async (req, res) => {
     try {
         console.log("PURCHASE")
         let { gateway } = req.params;
+        console.log("GATE=====>", gateway)
         let { user, membership } = req.body;
         let membershipHistory = await MembershipHistoryModel.create({
-            user: user._id,
+            user: user._id.toString(),
             name: membership.name,
             subjects: membership.subjects.map((subject => subject._id)),
             period: membership.period,
@@ -38,7 +39,7 @@ const purchase = async (req, res) => {
                     cancel_url: `${process.env.HOSTNAME}/billing/paypal/cancel`
                 },
                 transactions: [{
-                    custom: user._id,
+                    custom: user._id.toString(),
                     item_list: {
                         items: [{
                             name: membership.name,
@@ -83,7 +84,7 @@ const purchase = async (req, res) => {
             });
             let payment = await stripe.checkout.sessions.create({
                 mode: 'payment',
-                client_reference_id: user._id,
+                client_reference_id: user._id.toString(),
                 payment_method_types: ['card'],
                 customer_email: user.email,
                 line_items: [{
@@ -100,9 +101,8 @@ const purchase = async (req, res) => {
                     quantity: 1
                 }],
                 success_url: `${process.env.HOSTNAME}/billing/stripe/return?session_id={CHECKOUT_SESSION_ID}&history_id=${membershipHistory._id}`,
-                cancel_url: `${process.env.HOSTNAME}/billing/stripe/cancel`
+                cancel_url: `${process.env.HOSTNAME}/current-membership`
             });
-            console.log("PAYMENT=====>", payment);
             return res.json({
                 success: true,
                 redirect_url: payment.url
@@ -145,9 +145,10 @@ const gatewayReturn = async (req, res) => {
                     await history.update({ isPaid: true });
                 }
                 let user = await UserModel.findById(payment.transactions[0].custom);
+                let lastInvoice = await InvoiceModel.findOne().sort({ invoice_id: -1 });
                 let invoice = await InvoiceModel.create({
                     user: payment.transactions[0].custom,
-                    invoice_id: "INV-" + uniqid(),
+                    invoice_id: lastInvoice ? lastInvoice.invoice_id + 1 : 11231,
                     item_name: payment.transactions[0].item_list.items[0].name,
                     item_description: payment.transactions[0].item_list.items[0].description,
                     amount: payment.transactions[0].amount.total,
@@ -186,9 +187,10 @@ const gatewayReturn = async (req, res) => {
                 await history.update({ isPaid: true });
             }
             let user = await UserModel.findById(payment.client_reference_id);
+            let lastInvoice = await InvoiceModel.findOne().sort({ invoice_id: -1 });
             let invoice = await InvoiceModel.create({
                 user: payment.client_reference_id,
-                invoice_id: "INV-" + uniqid(),
+                invoice_id: lastInvoice ? lastInvoice.invoice_id + 1 : 11231,
                 item_name: lineItems.data[0].description,
                 item_description: lineItems.data[0].description + " Description.",
                 amount: lineItems.data[0].amount_total / 100,
@@ -206,7 +208,7 @@ const gatewayReturn = async (req, res) => {
         }
     } catch (err) {
         res.json({
-            success: true,
+            success: false,
             msg: err.message
         });
     }
