@@ -83,6 +83,7 @@ router.post("/private-billing/:gateway", userMiddleware, PrivateBillingCtrl.purc
 router.get("/private-billing/:gateway/return", userMiddleware, PrivateBillingCtrl.gatewayReturn);
 router.get("/invoices", userMiddleware, InvoiceCtrl.fetch);
 router.get("/invoices/:id", userMiddleware, InvoiceCtrl.fetchById);
+router.get("/invoices/get-new-invoices/:id", userMiddleware, InvoiceCtrl.fetchByNew);
 
 router.get("/admin/users", staffMiddleware, AdminUserCtrl.fetch);
 router.put("/admin/users/me", staffMiddleware, AdminUserCtrl.updateProfile);
@@ -97,6 +98,8 @@ router.post("/admin/users/:id/invoice", adminMiddleware, InvoiceCtrl.create);
 router.put("/admin/users/:id/invoice", adminMiddleware, InvoiceCtrl.update);
 router.delete("/admin/users/:id/invoice/:invoiceId", adminMiddleware, InvoiceCtrl.deleteInvoice);
 router.post("/admin/users/:id/membership", adminMiddleware, MembershipCtrl.create);
+router.put("/admin/users/:id/membership", adminMiddleware, MembershipCtrl.update);
+router.delete("/admin/users/:id/membership/:membershipId", adminMiddleware, MembershipCtrl.deleteMembershipHistory);
 
 router.get("/admin/staffs", adminMiddleware, AdminStaffCtrl.fetch);
 router.get("/admin/staffs/:id", adminMiddleware, AdminStaffCtrl.fetchById);

@@ -14,7 +14,7 @@ const create = async (req, res) => {
                 email: process.env.SENDGRID_USER,
                 name: process.env.SENDGRID_NAME
             },
-            subject: "AnswerSheet - Contact us enquiry",
+            subject: "AnswerSheet - contact us enquiry",
             html: `
             <div style="background: #fafafa; font-family: sans-serif; max-width: 660px; margin: auto">
                 <div style="padding: 10px; margin-bottom: 20px; background: #d6e4f1">

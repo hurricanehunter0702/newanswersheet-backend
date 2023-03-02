@@ -50,6 +50,10 @@ const InvoiceSchema = mongoose.Schema({
         type: String,
         match: /.+\@.+\..+/,
         default: "hongomg@gmail.com"
+    },
+    status: {
+        type: Boolean,
+        default: true
     }
 }, {
     timestamps: true

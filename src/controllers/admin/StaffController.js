@@ -11,14 +11,14 @@ const fetch = async (req, res) => {
         if (sortDir === "desc") sort[sortKey] = -1;
         else sort[sortKey] = 1;
     }
-    let totalCount = await UserModel.find({ role: 1 })
+    let totalCount = await UserModel.find({ role: [1, 2] })
         .or([
             { firstName: new RegExp(search, "i") },
             { lastName: new RegExp(search, "i") },
             { email: new RegExp(search, "i") }
         ])
         .count();
-    let data = await UserModel.find({ role: 1 })
+    let data = await UserModel.find({ role: [1, 2] })
         .or([
             { firstName: new RegExp(search, "i") },
             { lastName: new RegExp(search, "i") },
@@ -82,7 +82,7 @@ const create = async (req, res) => {
                         </div>
                         <div style="padding: 10px 20px; font-size: 12px;">
                             <p style="margin-top: 5px; margin-bottom: 5px;">&copy; 2023 AnswerSheet - all rights reserved.</p>
-                            <p style="margin-top: 5px; margin-bottom: 5px;">Our <a href="${process.env.HOSTNAME}/privacy-policy">Privacy Policy</a> explains how we collect, use, disclose, holds and secures personal information.</p>
+                            <p style="margin-top: 5px; margin-bottom: 5px;">Our <a href="${process.env.HOSTNAME}/privacy-policy">Privacy Policy</a> explains how we collect, use, disclose, hold and secure personal information.</p>
                             <p style="margin-top: 5px; margin-bottom: 5px;">Please do not reply to this email.</p>
                         </div>
                     </div>
@@ -152,7 +152,7 @@ const loginMng = async (req, res) => {
         }
         res.json({
             status: true,
-            msg: 'Operation Succeeded.'
+            msg: 'Successfully updated.'
         });
     } catch (err) {
         res.json({

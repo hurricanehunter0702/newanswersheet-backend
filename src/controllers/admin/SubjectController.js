@@ -49,7 +49,7 @@ const create = async (req, res) => {
         res.json({
             status: true,
             data: result,
-            msg: "Successfully created!"
+            msg: "Successfully created."
         });
     } catch (err) {
         res.json({

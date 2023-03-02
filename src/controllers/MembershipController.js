@@ -66,12 +66,14 @@ const getPurchasedMemberships = async (req, res) => {
         // }, {
         //     period: -1
         // }]
-    }).populate({
-        path: 'subjects', 
+    }).populate([{
+        path: 'subjects',
         populate: {
             path: 'year'
         }
-    });
+    }, {
+        path: "invoice"
+    }]);
     res.json(memberships);
 }
 
@@ -96,7 +98,7 @@ const checkPurchasedMembership = async (req, res) => {
             period: -1
 
         }]
-    });
+    }).populate("invoice");
     res.json(membership);
 }
 
@@ -106,18 +108,32 @@ const create = async (req, res) => {
         let invoice = req.body.selectedInvoice;
         let membershipId = req.body.selectedMembership;
         let membership = await MembershipModel.findById(membershipId);
-        let result = await MembershipHistory.create({
-            user: req.user.userId,
+        invoice = await InvoiceModel.findByIdAndUpdate(invoice, { status: true });
+        await MembershipHistory.create({
+            user: req.params.id,
             name: membership.name,
+            membership_id: membership._id,
+            invoice: invoice._id,
             subjects: subjects.map((subject, idx) => subject._id),
             period: membership.period,
             price: 0,
             isPaid: true
         });
+        let memberships = await MembershipHistory.find({
+            user: req.params.id,
+            isPaid: true
+        }).populate([{
+            path: 'subjects',
+            populate: {
+                path: 'year'
+            }
+        }, {
+            path: "invoice"
+        }]);
         res.json({
             success: true,
-            data: result,
-            message: 'Created successfully.'
+            data: memberships,
+            msg: 'Created successfully.'
         });
     } catch (err) {
         res.json({
@@ -125,7 +141,80 @@ const create = async (req, res) => {
             msg: err.message
         });
     }
-    
+}
+
+const update = async (req, res) => {
+    try {
+        let membershipHistoryId = req.body.editMembershipId;
+        let subjects = req.body.selectedSubjects;
+        let invoice = req.body.selectedInvoice;
+        let membershipId = req.body.selectedMembership;
+        let currentInvoice = req.body.currentInvoice;
+        let membership = await MembershipModel.findById(membershipId);
+        await InvoiceModel.findByIdAndUpdate(currentInvoice, { status: false });
+        invoice = await InvoiceModel.findByIdAndUpdate(invoice, { status: true });
+        await MembershipHistory.findByIdAndUpdate(membershipHistoryId, {
+            name: membership.name,
+            membership_id: membership._id.toString(),
+            invoice: invoice,
+            subjects: subjects.map((subject, idx) => subject._id),
+            period: membership.period,
+        });
+        let memberships = await MembershipHistory.find({
+            user: req.params.id,
+            isPaid: true
+        }).populate([{
+            path: 'subjects',
+            populate: {
+                path: 'year'
+            }
+        }, {
+            path: "invoice"
+        }]);
+        res.json({
+            success: true,
+            data: memberships,
+            msg: 'Updated successfully.'
+        });
+    } catch (err) {
+        res.json({
+            success: false,
+            msg: err.message
+        });
+    }
+}
+
+const deleteMembershipHistory = async (req, res) => {
+    try {
+        let { membershipId, id } = req.params;
+        let membershipToDelete = await MembershipHistory.findById(membershipId);
+        let invoiceId = membershipToDelete.invoice.toString();
+        await InvoiceModel.findByIdAndUpdate(invoiceId, { status: false });
+        await MembershipHistory.findByIdAndDelete(membershipId);
+        // let user = await UserModel.findById(id);
+        // let invoices = await InvoiceModel.find({ user: id });
+        let memberships = await MembershipHistory.find({
+            user: id,
+            isPaid: true
+        }).populate([{
+            path: 'subjects',
+            populate: {
+                path: 'year'
+            }
+        }, {
+            path: "invoice"
+        }]);
+        res.json({
+            success: true,
+            memberships,
+            msg: 'Deleted successfully.'
+        });
+    } catch (err) {
+        res.json({
+            success: false,
+            msg: err.message
+        })
+    }
 }
 
 module.exports = {
@@ -135,5 +224,7 @@ module.exports = {
     getPurchasedMemberships,
     checkPurchasedMembership,
     getInvoices,
-    create
+    create,
+    update,
+    deleteMembershipHistory
 }

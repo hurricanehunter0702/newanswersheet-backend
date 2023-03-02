@@ -55,7 +55,7 @@ const register = async (req, res) => {
                     </div>
                     <div style="padding: 10px 20px; font-size: 12px;">
                         <p style="margin-top: 5px; margin-bottom: 5px;">&copy; 2023 AnswerSheet Pty Ltd</p>
-                        <p style="margin-top: 5px; margin-bottom: 5px;">Our <a href="${process.env.HOSTNAME}/privacy-policy">Privacy Policy</a> explains how we collect, use, disclose, holds and secures personal information.</p>
+                        <p style="margin-top: 5px; margin-bottom: 5px;">Our <a href="${process.env.HOSTNAME}/privacy-policy">Privacy Policy</a> explains how we collect, use, disclose, hold and secure personal information.</p>
                         <p style="margin-top: 5px; margin-bottom: 5px;">Please do not reply to this email.</p>
                     </div>
                 </div>
@@ -94,7 +94,6 @@ const premiumRegister = async (req, res) => {
                 email: user.email,
                 token: token
             });
-            console.log(user)
             await sgMail.send({
                 to: user.email,
                 from: {
@@ -121,7 +120,7 @@ const premiumRegister = async (req, res) => {
                     </div>
                     <div style="padding: 10px 20px; font-size: 12px;">
                         <p style="margin-top: 5px; margin-bottom: 5px;">&copy; 2023 AnswerSheet Pty Ltd</p>
-                        <p style="margin-top: 5px; margin-bottom: 5px;">Our <a href="${process.env.HOSTNAME}/privacy-policy">Privacy Policy</a> explains how we collect, use, disclose, holds and secures personal information.</p>
+                        <p style="margin-top: 5px; margin-bottom: 5px;">Our <a href="${process.env.HOSTNAME}/privacy-policy">Privacy Policy</a> explains how we collect, use, disclose, hold and secure personal information.</p>
                         <p style="margin-top: 5px; margin-bottom: 5px;">Please do not reply to this email.</p>
                     </div>
                 </div>
@@ -155,7 +154,7 @@ const googleSignUp = async (req, res) => {
         if (user) {
             res.json({
                 success: false,
-                msg: "“Email already exists, try logging in."
+                msg: "Email already exists, try logging in."
             });
         } else {
             user = await UserModel.create({
@@ -165,19 +164,18 @@ const googleSignUp = async (req, res) => {
                 status: true,
                 password: password
             });
-            console.log("USER========>", user)
             let token = jwt.sign({
                 userId: user._id.toString(), email: user.email
             }, "a1A!s2S@d3D#f4F$", {
                 expiresIn: "24h"
             });
-            sgMail.send({
+            await sgMail.send({
                 to: user.email,
                 from: {
                     email: process.env.SENDGRID_USER,
                     name: process.env.SENDGRID_NAME
                 },
-                subject: "AnswerSheet - Sign up successful",
+                subject: "AnswerSheet - sign up successful",
                 html: `
                 <div style="background: #fafafa; font-family: sans-serif; max-width: 660px; margin: auto">
                     <div style="padding: 10px; margin-bottom: 20px; background: #d6e4f1">
@@ -186,15 +184,15 @@ const googleSignUp = async (req, res) => {
                     <div style="padding: 10px 20px; border-top: 2px solid #ebebeb; border-bottom: 2px solid #ebebeb;">
                         <h2 style="color: #005492;">Welcome to AnswerSheet</h2>
                         <p>Hi ${user.firstName}</p>
-                        <p>You are about to have the HSC at your fingertips. Have a look at our subjects - there's heaps of free summary notes and practice questions.</p>
-                        <p>When you're ready consider signing up to our Premium membership where you will access even more summary notes, practice questions and exams.</p>
+                        <p>You’re about to have the HSC at your fingertips. Have a look at our subjects - there’s heaps of free summary notes and practice questions.</p>
+                        <p>When you’re ready, consider signing up to our Premium membership where you will access even more study guides, summary notes, practice questions and exams.</p>
                         <p>We hope we can make the HSC easy for you.</p>
                         <p>Sincerely</p>
                         <p style="font-weight: 600;">The AnswerSheet team</p>
                     </div>
                     <div style="padding: 10px 20px; font-size: 12px;">
                         <p style="margin-top: 5px; margin-bottom: 5px;">© 2023 AnswerSheet Pty Ltd</p>
-                        <p style="margin-top: 5px; margin-bottom: 5px;">Our <a href="${process.env.HOSTNAME}/privacy-policy">Privacy Policy</a> explains how we collect, use, disclose, holds and secures personal information.</p>
+                        <p style="margin-top: 5px; margin-bottom: 5px;">Our <a href="${process.env.HOSTNAME}/privacy-policy">Privacy Policy</a> explains how we collect, use, disclose, hold and secure personal information.</p>
                         <p style="margin-top: 5px; margin-bottom: 5px;">Please do not reply to this email.</p>
                     </div>
                 </div>
@@ -204,7 +202,7 @@ const googleSignUp = async (req, res) => {
                 status: true,
                 user,
                 token,
-                msg: "Successfully registered. Please sign in using Google."
+                msg: "Successfully registered using Google account."
             });
         }
     } catch (err) {
@@ -256,7 +254,7 @@ const forgotPwd = async (req, res) => {
                     </div>
                     <div style="padding: 10px 20px; font-size: 12px;">
                         <p style="margin-top: 5px; margin-bottom: 5px;">© 2023 AnswerSheet Pty Ltd</p>
-                        <p style="margin-top: 5px; margin-bottom: 5px;">Our <a href="${process.env.HOSTNAME}/privacy-policy">Privacy Policy</a> explains how we collect, use, disclose, holds and secures personal information.</p>
+                        <p style="margin-top: 5px; margin-bottom: 5px;">Our <a href="${process.env.HOSTNAME}/privacy-policy">Privacy Policy</a> explains how we collect, use, disclose, hold and secure personal information.</p>
                         <p style="margin-top: 5px; margin-bottom: 5px;">Please do not reply to this email.</p>
                     </div>
                 </div>
@@ -299,7 +297,7 @@ const resetPwd = async (req, res) => {
             } else {
                 res.json({
                     status: false,
-                    msg: "Token is already expired"
+                    msg: "Link has expired."
                 });
             }
         } else {
@@ -336,7 +334,7 @@ const verifyEmail = async (req, res) => { // After registering, verify email.
                     email: process.env.SENDGRID_USER,
                     name: process.env.SENDGRID_NAME
                 },
-                subject: "Ansersheet - Sign up successful",
+                subject: "AnswerSheet - sign up successful",
                 html: `
                 <div style="background: #fafafa; font-family: sans-serif; max-width: 660px; margin: auto">
                     <div style="padding: 10px; margin-bottom: 20px; background: #d6e4f1">
@@ -345,15 +343,15 @@ const verifyEmail = async (req, res) => { // After registering, verify email.
                     <div style="padding: 10px 20px; border-top: 2px solid #ebebeb; border-bottom: 2px solid #ebebeb;">
                         <h2 style="color: #005492;">Welcome to Answersheet</h2>
                         <p>Hi ${user.firstName}</p>
-                        <p>You are about to have the HSC at your fingertips. Have a look at our subjects - there's heaps of free summary notes and practice questions.</p>
-                        <p>When you're ready consider signing up to our Premium membership where you will access even more summary notes, practice questions and exams.</p>
+                        <p>You’re about to have the HSC at your fingertips. Have a look at our subjects - there’s heaps of free summary notes and practice questions.</p>
+                        <p>When you’re ready, consider signing up to our Premium membership where you will access even more study guides, summary notes, practice questions and exams.</p>
                         <p>We hope we can make the HSC easy for you.</p>
                         <p>Sincerely</p>
                         <p style="font-weight: 600;">The AnswerSheet team</p>
                     </div>
                     <div style="padding: 10px 20px; font-size: 12px;">
                         <p style="margin-top: 5px; margin-bottom: 5px;">© 2023 AnswerSheet Pty Ltd</p>
-                        <p style="margin-top: 5px; margin-bottom: 5px;">Our <a href="${process.env.HOSTNAME}/privacy-policy">Privacy Policy</a> explains how we collect, use, disclose, holds and secures personal information.</p>
+                        <p style="margin-top: 5px; margin-bottom: 5px;">Our <a href="${process.env.HOSTNAME}/privacy-policy">Privacy Policy</a> explains how we collect, use, disclose, hold and secure personal information.</p>
                         <p style="margin-top: 5px; margin-bottom: 5px;">Please do not reply to this email.</p>
                     </div>
                 </div>
@@ -374,7 +372,7 @@ const verifyEmail = async (req, res) => { // After registering, verify email.
     } else {
         res.json({
             status: false,
-            msg: "Verify token is not icorrect."
+            msg: "Link has expired."
         });
     }
 }
@@ -386,10 +384,12 @@ const login = async (req, res) => {
         if (!user) {
             res.json({
                 status: false,
+                wrongInfo: true,
                 msg: "The email and password combination did not match our records."
             });
         } else if (!bcrypt.compareSync(password, user.password)) {
             res.json({
+                wrongInfo: true,
                 status: false,
                 msg: "The email and password combination did not match our records."
             });
@@ -397,7 +397,7 @@ const login = async (req, res) => {
             if (!user.status) {
                 res.json({
                     status: false,
-                    msg: "You need to verify your email to log in."
+                    msg: "Login failed, please email support@answersheet.au."
                 });
             } else {
                 let token = jwt.sign({
@@ -435,7 +435,7 @@ const googleLogin = async (req, res) => {
             if (!user.status) {
                 res.json({
                     status: false,
-                    msg: "You need to verify your email to log in."
+                    msg: "Login failed, please email support@answersheet.au."
                 });
             } else {
                 let token = jwt.sign({
@@ -453,7 +453,7 @@ const googleLogin = async (req, res) => {
         } else {
             res.json({
                 status: false,
-                msg: "The user is not a registered user. Please register to login in."
+                msg: "Email not registered, please sign up."
             });
         }
     } catch (err) {
@@ -493,7 +493,7 @@ const updateProfile = async (req, res) => {
                     email: process.env.SENDGRID_USER,
                     name: process.env.SENDGRID_NAME
                 },
-                subject: 'AnswerSheet - Changing email address',
+                subject: 'AnswerSheet - changing email address',
                 html: `
                 <div style="background: #fafafa; font-family: sans-serif; max-width: 660px; margin: auto">
                     <div style="padding: 10px; margin-bottom: 20px; background: #d6e4f1">
@@ -552,7 +552,7 @@ const verifyChangedEmail = async (req, res) => { // After changing email, verify
                     status: true,
                     user: newUser,
                     token,
-                    msg: "Changing email completed."
+                    msg: "Email updated successfully."
                 });
             });
         } else {
@@ -564,7 +564,7 @@ const verifyChangedEmail = async (req, res) => { // After changing email, verify
     } else {
         res.json({
             status: false,
-            msg: "Verify token is not correct."
+            msg: "Link has expired."
         });
     }
 }

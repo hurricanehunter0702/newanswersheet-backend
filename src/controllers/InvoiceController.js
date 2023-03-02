@@ -71,9 +71,18 @@ const fetchById = async (req, res) => {
     }
 }
 
+const fetchByNew = async (req, res) => {
+    let { id } = req.params;
+    let invoices = await InvoiceModel.find({
+        user: id,
+        status: false
+    });
+    res.json(invoices);
+}
+
 const create = async (req, res) => {
     try {
-        const { itemName, isPaid, paidDate, subtotal, invoiceDescription } = req.body;
+        const { itemName, isPaid, paidDate, subtotal, invoiceDescription, status } = req.body;
         let userId = req.params.id;
         let lastInvoice = await InvoiceModel.findOne().sort({ invoice_id: -1 });
         let invoice = await InvoiceModel.create({
@@ -83,6 +92,7 @@ const create = async (req, res) => {
             item_description: invoiceDescription,
             amount: subtotal,
             gst: 0,
+            status: status,
             // currency: AUD,
             paid_date: paidDate,
         });
@@ -143,6 +153,7 @@ const deleteInvoice = async (req, res) => {
 module.exports = {
     fetch,
     fetchById,
+    fetchByNew,
     create,
     update,
     deleteInvoice

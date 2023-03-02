@@ -17,9 +17,7 @@ sgMail.setApiKey(process.env.SENDGRID_API_KEY)
 
 const purchase = async (req, res) => {
     try {
-        console.log("PURCHASE")
         let { gateway } = req.params;
-        console.log("GATE=====>", gateway)
         let { user, membership } = req.body;
         let membershipHistory = await MembershipHistoryModel.create({
             user: user._id.toString(),
@@ -63,7 +61,6 @@ const purchase = async (req, res) => {
             }, function (err, payment) {
                 if (err) throw err;
                 else {
-                    console.log("PAYMENT=====>", payment);
                     res.json({
                         success: true,
                         redirect_url: payment.links[1].href
@@ -118,7 +115,6 @@ const purchase = async (req, res) => {
 
 const gatewayReturn = async (req, res) => {
     try {
-        console.log("GATEWAYRETURN")
         let { paymentId, payerId, historyId } = req.query;
         let { gateway } = req.params;
 
@@ -134,16 +130,6 @@ const gatewayReturn = async (req, res) => {
                     note: "membership",
                     type: "paypal"
                 });
-                let history = await MembershipHistoryModel.findById(historyId);
-                let expiredDate = moment().add(history.period, "M").format("YYYY-MM-DD HH:mm:ss");
-                if (Number(history.period) !== -1) {
-                    await history.update({
-                        isPaid: true,
-                        expiredDate: expiredDate
-                    });
-                } else {
-                    await history.update({ isPaid: true });
-                }
                 let user = await UserModel.findById(payment.transactions[0].custom);
                 let lastInvoice = await InvoiceModel.findOne().sort({ invoice_id: -1 });
                 let invoice = await InvoiceModel.create({
@@ -157,11 +143,23 @@ const gatewayReturn = async (req, res) => {
                     paid_date: moment(payment.create_time).format("YYYY-MM-DD HH:mm:ss")
                 });
 
+                let history = await MembershipHistoryModel.findById(historyId);
+                let expiredDate = moment().add(history.period, "M").format("YYYY-MM-DD HH:mm:ss");
+                if (Number(history.period) !== -1) {
+                    await history.update({
+                        isPaid: true,
+                        invoice: invoice._id,
+                        expiredDate: expiredDate
+                    });
+                } else {
+                    await history.update({ invoice: invoice._id, isPaid: true });
+                }
+
                 res.json({
                     success: true,
                     email: user.email,
                     invoiceId: invoice.id,
-                    msg: "Successfully purchased! Right now you need to verify email. Please check your email."
+                    msg: "Successfully purchased. Right now you need to verify email. Please check your email."
                 });
             });
         } else if (gateway === "stripe") {
@@ -176,16 +174,6 @@ const gatewayReturn = async (req, res) => {
                 type: "stripe",
                 note: "membership"
             });
-            let history = await MembershipHistoryModel.findById(historyId);
-            let expiredDate = moment().add(history.period, "M").format("YYYY-MM-DD HH:mm:ss");
-            if (Number(history.period) !== -1) {
-                await history.update({
-                    isPaid: true,
-                    expiredDate: expiredDate
-                });
-            } else {
-                await history.update({ isPaid: true });
-            }
             let user = await UserModel.findById(payment.client_reference_id);
             let lastInvoice = await InvoiceModel.findOne().sort({ invoice_id: -1 });
             let invoice = await InvoiceModel.create({
@@ -198,12 +186,23 @@ const gatewayReturn = async (req, res) => {
                 currency: lineItems.data[0].currency,
                 paid_date: moment.unix(payment.created).format("YYYY-MM-DD HH:mm:ss")
             });
+            let history = await MembershipHistoryModel.findById(historyId);
+            let expiredDate = moment().add(history.period, "M").format("YYYY-MM-DD HH:mm:ss");
+            if (Number(history.period) !== -1) {
+                await history.update({
+                    isPaid: true,
+                    invoice: invoice._id,
+                    expiredDate: expiredDate
+                });
+            } else {
+                await history.update({ isPaid: true, invoice: invoice._id });
+            }
 
             res.json({
                 success: true,
                 email: user.email,
                 invoiceId: invoice.id,
-                msg: "Successfully purchased! Right now you need to verify email. Please check your email."
+                msg: "Successfully purchased. Right now you need to verify email. Please check your email."
             });
         }
     } catch (err) {
@@ -216,7 +215,6 @@ const gatewayReturn = async (req, res) => {
 
 const invoice = async (req, res) => {
     try {
-        console.log("INVOICE")    
         let { email, invoiceId } = req.body;
         let invoice = await InvoiceModel.findById(invoiceId);
         await sgMail.send({
@@ -324,7 +322,6 @@ const invoice = async (req, res) => {
 }
 
 const webhook = async (req, res) => {
-    console.log("WEBHOOK")
     try {
         let { gateway } = req.params;
         if (gateway === "paypal") {

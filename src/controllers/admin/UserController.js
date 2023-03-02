@@ -44,12 +44,14 @@ const fetchById = async (req, res) => {
     let memberships = await MembershipHistoryModel.find({
         user: id,
         isPaid: true
-    }).populate({
+    }).populate([{
         path: 'subjects', 
         populate: {
             path: 'year'
         }
-    });
+    }, {
+        path: "invoice"
+    }]);
     res.json({
         user,
         invoices,
@@ -159,7 +161,7 @@ const updateProfile = async (req, res) => {
                         </div>
                         <div style="padding: 10px 20px; font-size: 12px;">
                             <p style="margin-top: 5px; margin-bottom: 5px;">&copy; 2023 AnswerSheet Pty Ltd - all rights reserved.</p>
-                            <p style="margin-top: 5px; margin-bottom: 5px;">Our <a href="${process.env.HOSTNAME}/privacy-policy">Privacy Policy</a> explains how we collect, use, disclose, holds and secures personal information.</p>
+                            <p style="margin-top: 5px; margin-bottom: 5px;">Our <a href="${process.env.HOSTNAME}/privacy-policy">Privacy Policy</a> explains how we collect, use, disclose, hold and secure personal information.</p>
                             <p style="margin-top: 5px; margin-bottom: 5px;">Please do not reply to this email.</p>
                         </div>
                     </div>

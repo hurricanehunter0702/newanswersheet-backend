@@ -18,24 +18,22 @@ let global_subjects = '';
 
 const purchase = async (req, res) => {
     try {
-        console.log("PRIVATEPURCHASE")
         let user = await UserModel.findById(req.user.userId);
         let { gateway } = req.params;
         let { membership } = req.body;
         global_subjects = '';
-        console.log("MEMBERSHIP====>", membership);
         for (let i = 0; i < membership.subjects.length; i++) {
             global_subjects += `<li>${membership.subjects[i].year_name} - ${membership.subjects[i].name}</li>`;
         }
         let membershipHistory = await MembershipHistoryModel.create({
             user: user._id,
+            membership_id: membership.membership_id,
             name: membership.name,
             subjects: membership.subjects.map((subject, idx) => subject._id),
             period: membership.period,
             price: membership.price
         });
         if (gateway === "paypal") {
-            console.log("PRIVATEPAYPAL")
             paypal.payment.create({
                 intent: "sale",
                 payer: {
@@ -88,8 +86,8 @@ const purchase = async (req, res) => {
                 mode: "payment",
                 client_reference_id: user._id.toString(),
                 payment_method_types: ['card'],
-                customer: customer.id,
-                // customer_email: user.email,
+                // customer: customer.id,
+                customer_email: user.email,
                 line_items: [{
                     price_data: {
                         currency: 'AUD',
@@ -109,7 +107,6 @@ const purchase = async (req, res) => {
                 success_url: `${process.env.HOSTNAME}/private-billing/stripe/return?session_id={CHECKOUT_SESSION_ID}&history_id=${membershipHistory._id}`,
                 cancel_url: `${process.env.HOSTNAME}/current-membership`
             });
-            console.log("PAYMENT_URL======>", payment.url)
             return res.json({
                 success: true,
                 redirect_url: payment.url
@@ -125,12 +122,10 @@ const purchase = async (req, res) => {
 
 const gatewayReturn = async (req, res) => {
     try {
-        console.log("PRIVATEGATEWAYRETURN")
         let { paymentId, payerId, historyId } = req.query;
         let { gateway } = req.params;
 
         if (gateway === "paypal") {
-            console.log("PRIVATEGATEWAYPAYPAL")
             paypal.payment.execute(paymentId, {
                 payer_id: payerId
             }, async function (err, payment) {
@@ -142,18 +137,7 @@ const gatewayReturn = async (req, res) => {
                     note: "membership",
                     type: "paypal"
                 });
-                let history = await MembershipHistoryModel.findById(historyId);
-                let expiredDate = moment().add(history.period, "M").format("YYYY-MM-DD HH:mm:ss");
-                if (Number(history.period) !== -1) {
-                    await history.update({
-                        isPaid: true,
-                        expiredDate: expiredDate
-                    });
-                } else {
-                    await history.update({
-                        isPaid: true
-                    });
-                }
+
                 let user = await UserModel.findById(payment.transactions[0].custom);
                 let lastInvoice = await InvoiceModel.findOne().sort({ invoice_id: -1 });
                 let invoice = await InvoiceModel.create({
@@ -167,17 +151,36 @@ const gatewayReturn = async (req, res) => {
                     paid_date: moment(payment.create_time).format("YYYY-MM-DD HH:mm:ss")
                 });
 
-                res.json({
+                let history = await MembershipHistoryModel.findById(historyId);
+                let expiredDate = moment().add(history.period, "M").format("YYYY-MM-DD HH:mm:ss");
+                if (Number(history.period) !== -1) {
+                    await history.update({
+                        invoice: invoice._id,
+                        isPaid: true,
+                        expiredDate: expiredDate
+                    });
+                } else {
+                    await history.update({
+                        invoice: invoice._id,
+                        isPaid: true
+                    });
+                }
+                let sendEmailParams = {
+                    invoiceId: invoice._id,
+                    subjectsNum: history.subjects.length,
+                    user,
+                }
+                await sendEmail(sendEmailParams, res);
+
+                return res.json({
                     success: true,
-                    invoiceId: invoice.id,
+                    invoiceId: invoice._id,
                     membershipId: user.membership,
-                    msg: "Successfully purchased!"
+                    msg: "Successfully purchased."
                 });
             })
         } else if (gateway === "stripe") {
-            console.log("PRIVATEGATEWAYSTRIPE")
             let payment = await stripe.checkout.sessions.retrieve(paymentId);
-            console.log("PAYMENT====>", payment)
             let lineItems = await stripe.checkout.sessions.listLineItems(paymentId, { limit: 1 });
             let transaction = await stripe.paymentIntents.retrieve(payment.payment_intent);
             await TransactionModel.create({
@@ -188,23 +191,9 @@ const gatewayReturn = async (req, res) => {
                 type: "stripe",
                 note: "membership"
             });
-            let history = await MembershipHistoryModel.findById(historyId);
-            let expiredDate = moment().add(history.period, "M").format("YYYY-MM-DD HH:mm:ss");
-            if (Number(history.period) !== -1) {
-                await history.update({
-                    isPaid: true,
-                    expiredDate: expiredDate
-                });
-            } else {
-                await history.update({
-                    isPaid: true
-                });
-            }
+            
             let user = await UserModel.findById(payment.client_reference_id);
-            console.log("PAYMENT=========>", payment)
-            console.log("LINEITEMS=========>", lineItems)
             let lastInvoice = await InvoiceModel.findOne().sort({ invoice_id: -1 });
-            console.log("LASTINVOICE========>", lastInvoice)
             let invoice = await InvoiceModel.create({
                 user: payment.client_reference_id,
                 invoice_id: lastInvoice ? lastInvoice.invoice_id + 1 : 11231,
@@ -215,21 +204,36 @@ const gatewayReturn = async (req, res) => {
                 currency: lineItems.data[0].currency,
                 paid_date: moment.unix(payment.created).format("YYYY-MM-DD HH:mm:ss")
             });
+            let history = await MembershipHistoryModel.findById(historyId);
+            let expiredDate = moment().add(history.period, "M").format("YYYY-MM-DD HH:mm:ss");
+            if (Number(history.period) !== -1) {
+                await MembershipHistoryModel.findByIdAndUpdate(historyId, {
+                    invoice: invoice._id,
+                    isPaid: true,
+                    expiredDate: expiredDate
+                });
+            } else {
+                await MembershipHistoryModel.findByIdAndUpdate(historyId, {
+                    invoice: invoice._id,
+                    isPaid: true
+                });
+            }
+            
             let sendEmailParams = {
-                invoiceId: invoice.id,
+                invoiceId: invoice._id,
                 subjectsNum: history.subjects.length,
                 user,
             }
             await sendEmail(sendEmailParams, res);
-            res.json({
+            return res.json({
                 success: true,
-                invoiceId: invoice.id,
+                invoiceId: invoice._id,
                 membershipId: user.membership,
-                msg: "Successfully purchased! Please check your email."
+                msg: "Successfully purchased. Please check your email."
             });
         }
     } catch (err) {
-        res.json({
+        return res.json({
             success: false,
             msg: err.message
         });
@@ -296,19 +300,15 @@ const sendEmail = async (sendEmailParams, res) => {
                 </div>
                 <div style="padding: 10px 20px;">
                     <p>&copy; 2023 AnswerSheet Pty Ltd</p>
-                    <p>Our <a href="./index.html">Privacy Policy</a> explains how we collect, use, disclose, holds and secures
+                    <p>Our <a href="./index.html">Privacy Policy</a> explains how we collect, use, disclose, hold and secure
                         personal information.</p>
                     <p>Please do not reply to this email.</p>
                 </div>
             </div>
             `
         });
-        res.json({
-             success: true,
-             msg: "Successfully sent. Please check your email."
-        });
     } catch (err) {
-        res.json({
+        return res.json({
             success: false,
             msg: err.message
         });
@@ -364,7 +364,7 @@ const emailMe = async (req, res) => {
                     </div>
                     <div style="padding: 10px 20px;">
                         <p>&copy; 2023 AnswerSheet Pty Ltd</p>
-                        <p>Our <a href="./index.html">Privacy Policy</a> explains how we collect, use, disclose, holds and secures
+                        <p>Our <a href="./index.html">Privacy Policy</a> explains how we collect, use, disclose, hold and secure
                             personal information.</p>
                         <p>Please do not reply to this email.</p>
                     </div>
@@ -373,7 +373,7 @@ const emailMe = async (req, res) => {
         });
         res.json({
             success: true,
-            msg: 'Successfully sent an email to you.'
+            msg: 'Successfully emailed invoice to you.'
         });
     } catch (err) {
         res.json({

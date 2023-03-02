@@ -9,9 +9,17 @@ const MembershipHistorySchema = mongoose.Schema({
         type: String,
         required: true
     },
+    invoice: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "Invoice"
+    },
     subjects: {
         type: [mongoose.Schema.Types.ObjectId],
         ref: 'Subject',
+        required: true
+    },
+    membership_id: {
+        type: String,
         required: true
     },
     period: {

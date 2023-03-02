@@ -17,7 +17,8 @@ const fetch = async (req, res) => {
     
     let data = await TopicModel.find({
         name: new RegExp(search, "i")
-    }).populate({
+    })
+    .populate({
         path: "module",
         select: { _id: 1, name: 1 },
         populate: {
@@ -37,10 +38,10 @@ const fetch = async (req, res) => {
         options: {
             sort: sort
         }
-    }).sort(sort)
+    })
+    .sort(sort)
     .skip((page - 1) * length)
     .limit(length);
-
     res.json({
         data,
         totalCount
@@ -59,7 +60,7 @@ const create = async (req, res) => {
 
         res.json({
             status: true,
-            msg: "Successfully created!",
+            msg: "Successfully created.",
             data: result
         });
     } catch (err) {
@@ -74,11 +75,15 @@ const fetchById = async (req, res) => {
     try {
         let { id } = req.params;
         let topic = await TopicModel.findById(id).populate({
-            path: "subject",
+            path: "module",
             select: { _id: 1, name: 1},
             populate: {
-                path: "year",
-                select: { _id: 1, name: 1 }
+                path: "subject",
+                select: { _id: 1, name: 1 },
+                populate: {
+                    path: "year",
+                    select: { _id: 1, name: 1}
+                }
             }
         });
         res.json({

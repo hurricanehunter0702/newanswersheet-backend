@@ -4,7 +4,6 @@ const { slugify } = require("../../services/helper");
 
 const fetch = async (req, res) => {
     let { search, length, page, sortKey, sortDir } = req.query;
-    console.log(search);
     let sort = {};
     if (sortKey) {
         if (sortDir === "desc") sort[sortKey] = -1;
@@ -84,7 +83,7 @@ const create = async (req, res) => {
     
         res.json({
             success: true,
-            msg: "Successfully created!"
+            msg: "Successfully created."
         });
     } catch (err) {
         res.json({

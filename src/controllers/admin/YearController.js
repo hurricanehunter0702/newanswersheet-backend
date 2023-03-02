@@ -61,7 +61,7 @@ const create = async (req, res) => {
         let result = await YearModel.create(year);
         res.json({
             status: true,
-            msg: "Successfully created!",
+            msg: "Successfully created.",
             data: result
         });
     } catch (err) {
